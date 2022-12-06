@@ -3,5 +3,5 @@
 
 # The Hitchhiker’s Guide to Longitudinal Models: A Primer on Model Selection for Repeated-Measures Methods
 
-[Ethan M. McCormick](https://e-m-mccormick.github.io/) \* Department of
-Methodology & Statistics \* Leiden University
+[Ethan M. McCormick](https://e-m-mccormick.github.io/) \| Department of
+Methodology & Statistics \| Leiden University
