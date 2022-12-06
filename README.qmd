@@ -1,0 +1,23 @@
+---
+format: gfm
+---
+
+<!-- README.md is generated from README.qmd. Please edit that file -->
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "README-",
+  fig.retina = 3
+)
+
+Title <- "The Hitchhiker’s Guide to Longitudinal Models: A Primer on Model Selection for Repeated-Measures Methods"
+Authors <- "[Ethan M. McCormick](https://e-m-mccormick.github.io/), [Michelle L. Byrne](https://research.monash.edu/en/persons/michelle-byrne), [John C. Flournoy](https://johnflournoy.science/), [Katheryn L. Mills](http://devbrainlab.org/), & [Jennifer H. Pfiefer](https://dsn.uoregon.edu/)"
+Year <- 2022
+```
+
+# `r Title`
+[Ethan M. McCormick](https://e-m-mccormick.github.io/) \* Department of Methodology \& Statistics \* Leiden University
+
+
