@@ -1,0 +1,36 @@
+--- 
+title: "The Hitchhiker’s Guide to Longitudinal Models"
+subtitle: "Code Companion"
+author: "[Ethan M. McCormick](https://mccormickneuro.github.io/)"
+date: "Published: `r format(Sys.time(), '%d %B, %Y')`"
+site: bookdown::bookdown_site
+documentclass: book
+bibliography: [book.bib, packages.bib]
+biblio-style: apalike
+#link-citations: yes
+# cover-image: path to the social sharing image like images/cover.jpg
+description: |
+  This is a code companion for The Hitchhiker’s Guide to Longitudinal Models.
+link-citations: yes
+url: https\://https://mccormickneuro.github.io/longitudinal-primer/
+github-repo: "McCormickNeuro/longitudinal-primer"
+---
+
+# About {#about}
+```{r, setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The following document is a code companion to [The Hitchhiker’s Guide to Longitudinal Models: A Primer on Model Selection for Repeated-Measures Methods](https://psyarxiv.com/ga4qz), [https://osf.io/bn6yu/](https://osf.io/bn6yu/). 
+
+Some general notes about this code companion:
+
+- We believe in the importance of using real data in our examples of longitudinal models. However, some of the models we discuss can not yet be fit using publicly-available neuroimaging data (most often due to a limited number of observations). To bridge this gap, we have synthesized data from a number of sources, detailed in [Datasets](#datasets). Variable names and identification codes have been changed to protect the innocent and to provide examples that will be familiar to developmental cognitive neuroscience researchers. However, one limitation of synthesized data is that model fits are often significantly worsened compared to the real data. As such, for pedagogical purposes, we will fit (and sometimes interpret) results from models that we would usually reject in practice based on overall model fit.
+
+- Given the nature of R, there are likely several ways to accomplish what we outline here. This code should not be taken as the *definitive* one way that data manipulation or model fitting can be accomplished, but rather as a standard pipeline that should hopefully be accessible to new users of R and longitudinal methods more generally.
+
+- In general, we will include the code used to generate the results. However, in the interest of spending more time on the models and associated syntax, we may not include an in-depth explanation of every function or syntax option. The rmarkdown source files are available in a public [github repository](https://github.com/McCormickNeuro/longitudinal-primer) for those interested.
+
+- While the contents of this primer and code companion will focus on implementation in the R environment, links will be provided to other programs where possible. **A fair warning: code in other languages will be provided in an arbitrary and capricious manner. This policy should be familiar to the reader, given their experience with the text of the manuscript (and if very unlucky, the first author).**
+
+- In general, precision beyond the third decimal place is as real as [unicorns](https://psycnet.apa.org/record/1989-14214-001) and so we will round our numbers to that level when discussing them.

@@ -1,0 +1,582 @@
+# Canonical Models {#canon}
+
+What follows are canonical versions of growth models in each of the four different frameworks. These models represent basic implementations of a linear growth trajectory with random effects for both the intercept and slope, with the exception of the GAMM, where a non-linear spline model is implemented (otherwise it would just re-capitulate the MLM results). This will be the longest chapter of the codebook since we will cover syntax and model output more in-depth than in later chapters. Remain calm and clutch your towel as necessary.
+
+First, we need to read in the datasets we will use in this chapter.
+
+```{r, read data canonical, message = FALSE, warning = FALSE, error = FALSE}
+executive.function <- utils::read.csv("data/executive-function.csv", header = TRUE) %>%
+  select(id, dlpfc1:dlpfc4)
+
+executive.function.long <- executive.function %>% 
+  tidyr::pivot_longer(cols = starts_with("dlpfc"), 
+                      names_to = c(".value", "wave"), 
+                      names_pattern = "(.+)(.)") %>%
+  dplyr::mutate(wave = as.numeric(wave) - 1)
+
+feedback.learning <- read.csv("data/feedback-learning.csv") %>% 
+  select(id, age, modularity)
+```
+
+While we will usually read in the wide and long versions of the data directly, here we will demonstrate how to reformat the more common wide data format (i.e., each row corresponds to a different individual and repeated measures are new variables) into the long data format (i.e., each row corresponds to a different repeated measure with multiple rows per person). We can use the `pivot_longer()` function from the [**tidyr**](https://tidyr.tidyverse.org/) package (alternatives include `melt()` from the [**reshape**](https://cran.r-project.org/web/packages/reshape2/index.html) package). We will collect all the columns that begin with the string `dlpfc` and pass the values into one column, while creating a new column `wave` from their number indices (e.g., `1` for `dlpfc1`). We can then use the `mutate()` function from the [**dplyr**](https://dplyr.tidyverse.org/) package to change the wave colum from a character to a numeric variable and subtract $1$ from every value so that the first wave is coded as $0$ (this will be important for interpretations later).
+
+Details regarding these datasets can be found in [Datasets](#datasets). However, shortly, the `executive-function.csv` file contains data for $342$ adolescents measured up to $4$ times. At each wave, adolescents played an executive function task while in an fMRI scanner. For now, we will only use the DLPFC measures to build the canonical growth models. The first $5$ individuals are shown below. These data are in wide format.
+
+```{r, display executive.function wide 02, message = FALSE, warning = FALSE, error = FALSE}
+executive.function %>% filter(id <= 5) %>%
+  kableExtra::kable(label = NA,
+                    format = "html",
+                    digits = 3,
+                    booktabs = TRUE,
+                    escape = FALSE,
+                    caption = "**Executive Function Data: Wide Format**",
+                    align = "c",
+                    row.names = FALSE) %>%
+  kableExtra::row_spec(row = 0, align = "c")
+```
+
+We can then see what this looks like in long format.
+
+```{r, display executive.function long 02, message = FALSE, warning = FALSE, error = FALSE}
+executive.function.long %>% filter(id <= 5) %>%
+  kableExtra::kable(label = NA,
+                    format = "html",
+                    digits = 3,
+                    booktabs = TRUE,
+                    escape = FALSE,
+                    caption = "**Executive Function Data: Long Format**",
+                    align = "c",
+                    row.names = FALSE) %>%
+  kableExtra::row_spec(row = 0, align = "c")
+```
+
+The `feedback-learning.csv` file contains data for $297$ adolescents and young adults measured up to $3$ times. At each wave, individuals played a feedback learning task while in an fMRI scanner. ROI timeseries were then used to construct a brain network graph and the modularity of that graph was calculated. Here we will focus on these modularity values. The first $5$ individuals are shown below.
+
+```{r, display feedback.learning 02, message = FALSE, warning = FALSE, error = FALSE}
+feedback.learning %>% filter(id <= 5) %>%
+  kableExtra::kable(label = NA,
+                    format = "html",
+                    digits = 3,
+                    booktabs = TRUE,
+                    escape = FALSE,
+                    caption = "**Feedback Learning Data**",
+                    align = "c",
+                    row.names = FALSE) %>%
+  kableExtra::row_spec(row = 0, align = "c")
+```
+
+Before we move into fitting the growth models in each of the four frameworks, we can begin by exporting the data to [**SAS**](https://www.sas.com/) and [**Mplus**](https://www.statmodel.com/) compatible file types. We will use the [**MplusAutomation**](https://michaelhallquist.github.io/MplusAutomation/articles/vignette.html) package to write our Rdata into a `.dat` file. We have wrapped the command in the `capture.output()` function so that we can retain a record of the column names (**Mplus** does not accept files with headers) to prevent referencing the wrong variable when we run our model. The output of the **MplusAutomation** command `prepareMplusData()` will be saved in a text file in the same external directory.
+
+```{r, write to mplus 02, message = FALSE, warning = FALSE, error = FALSE}
+filename <- "executive-function"
+capture.output(
+  MplusAutomation::prepareMplusData(executive.function, 
+                                    paste0("external/",filename,".dat")),
+  file=paste0("external/",filename,"_MplusAutomation.txt"))
+```
+
+Although we do not show the running and output of these models in-depth, all the **Mplus** files needed to recreate the MLM and SEM models are available to be downloaded below.
+
+```{r, download mplus 02, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
+download_file(
+  path = c(paste0("external/",filename,".dat"),
+           paste0("external/",filename,"_MplusAutomation.txt")),
+  output_name = "02-canonical-mpluscode",
+  button_label = "Download Mplus files",
+  button_type = "default",
+  has_icon = TRUE,
+  icon = "fa fa-save",
+  self_contained = FALSE
+)
+```
+
+For readers interested in how to automate running **Mplus** models through **R**, please consult the extrememly useful functions in [**MplusAutomation**](https://michaelhallquist.github.io/MplusAutomation/articles/vignette.html) that allow you to generate syntax, run saved input files, and re-import **Mplus** models into the R environment. Please note that a local **Mplus** license is still necessary to run these models.
+
+We can also use the package [**foreign**](https://cran.r-project.org/web/packages/foreign/index.html) to write out the data to a **SAS** compatible text file. The `write.foreign()` function also outputs a syntax file that imports the data into the **SAS** environment. 
+
+```{r, write to sas 02, message = FALSE, warning = FALSE, error = FALSE}
+foreign::write.foreign(executive.function.long, 
+                       datafile = paste0("external/",filename,".txt"), 
+                       codefile = paste0("external/import_",filename,".sas"), 
+                       package="SAS")
+```
+
+For convenience, all the **SAS** files needed to recreate the MLM analyses are available for download below.
+
+```{r, download sas 02, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
+download_file(
+  path = c(paste0("external/",filename,".txt"),
+           paste0("external/import_",filename,".sas")),
+  output_name = "02-canonical-sascode",
+  button_label = "Download SAS files",
+  button_type = "default",
+  has_icon = TRUE,
+  icon = "fa fa-save",
+  self_contained = FALSE
+)
+```
+
+## Multilevel Model
+
+We will start with the multilevel growth model using our `executive.function` data. There are a number of package options to fit multilevel models, but we will focus here on two of the most popular: [**nlme**](https://cran.r-project.org/web/packages/nlme/index.html) and [**lme4**](https://cran.r-project.org/web/packages/lme4/index.html). We will also use the [**lmerTest**](https://cran.r-project.org/web/packages/lmerTest/index.html) package which outputs *p*-values for the tests, which are not included in the **lme4** package. We will fit a very simple linear model with a random intercept and slope for the DLPFC activation data using all of these packages. For these initial models, we will mostly use `wave` as our metric of time rather than `age` for simplicity. We will return to models which use different time variables in later sections.
+
+### nlme
+
+The **nlme** function `lme()` separates its syntax into a `fixed` and `random` argument using the standard `glm()` syntax common to **R**. In the `random` argument, we indicate that the random intercept (`1`) and random slope (`wave`) are nested within `id` using the pipe (`|`) character. We will indicate that rows with missing data will be omitted using `na.action = na.omit` and set the estimator to REstricted Maximum Likelihood (REML). For a discussion of REML versus Full Information Maximum Likelihood (FIML; set `method = "ML"`), see more information [here](https://www.tandfonline.com/doi/abs/10.1080/00273171.2017.1344538). Once the model is finished running, we can print the model output to the console using the `summary()` function. Here we use the argument `correlation=FALSE` to suppress the correlation of fixed effects output, which is unlikely to be of interest to applied researchers.
+
+```{r canonical MLM 01, warning = FALSE, message = FALSE}
+mlm.nlme <- nlme::lme(dlpfc ~ 1 + wave,
+                      random = ~ 1 + wave | id,
+                      na.action = na.omit,
+                      method = "REML",
+                      data = executive.function.long)
+
+summary(mlm.nlme, correlation = FALSE)
+```
+
+The first section of the model output shows the loglikelihood (`logLik`) and associated absolute fit indices (`AIC` and `BIC`). The `Random effects` section shows parameter estimtaes of the standard deviations (`StdDev`) and correlations (`Corr`) of the random effects (the identities are denoted by labels to the left of the matrix), as well as the level-1 error standard deviation (`Residual`). We can see that the standard deviation of the random intercept ($StdDev = 0.812$) is substantially larger than that of the random slope ($StdDev = 0.223$). This is often the case and has more to do with the scaling of the effect than anything else. The correlation between the random effects ($Corr = -0.354$) suggests that individual with higher initial levels of DLPFC activation show lower slope values . We will need to interpret this in the context of the fixed effects (e.g., are the slopes less positive, or more negative?), and plotting the predicted effects is often useful for this interpretation.
+
+The `Fixed effects` section contains the regression estimates of our fixed effects. Here we can see that the average value of DLPFC activation at the intercept is $0.546$. Because we coded the `wave` predictor to have values of $0$ at the first measurement occasion, this means that the intercept corresponds to initial DLPFC activation. Of course, the units here aren"t meaningful, but initial status is often (but not always) the desired interpretation of the intercept term. Here the slope is positive and significant ($\gamma_{wave} = .199, SE = 0.021, p < .001$).
+
+The final section contains information about the number of observations and number of groups, which are good values to check to ensure that the nesting of the data in the model corresponds to expectations.
+
+### lme4
+
+The `lmer()` function has largely supplanted `lme()` in most applications of multilevel models. Here, the formula is contained within a single line but is largely the same format. Additionally, the `method = "REML"` argument has been changed to `REML = TRUE` (`REML = FALSE` gives us FIML).
+
+```{r canonical MLM 02, warning = FALSE, message = FALSE}
+mlm.lme4 <- lme4::lmer(dlpfc ~ 1 + wave + (1 + wave | id), 
+                       na.action = na.omit,
+                       REML = TRUE,
+                       data = executive.function.long)
+
+summary(mlm.lme4, correlation = FALSE)
+```
+
+The main differences in the output are that `lmer()` gives the variance of the random effects in addition to the standard deviations, and that there are no longer *p*-values associated with the fixed effects. However, all the values are identical to the `lme()` solution (which should make us sigh in relief).
+
+If we wish to extract significance information on the random effect components, we can calculate confidence intervals using the `confint()` function from the [**stats**]() package.
+
+```{r canonical MLM 02.1, warning = FALSE, message = FALSE}
+confint(mlm.lme4)
+```
+
+For each parameter, we want to check if the confidence interval contains $0$. Unfortunately, the standard command labels things in non-specific terms (e.g., `.sig01`). If we want more informative labels, we can include the `oldNames = FALSE` argument.
+
+```{r}
+confint(mlm.lme4,
+        oldNames = TRUE)
+```
+
+As we can see, these labels are much more informative to ensure we are interpreting the correct parameter. Note: `sigma` will always be the level $1$ residual variance and will not have an informative label. The corresponding command for computing confidence intervals in **nlme** is `intervals()`.
+
+
+### lmerTest
+
+If we wish to retain *p*-values in our solution, we can load the package **lmerTest** and use its version of `lmer()` to fit the model. The syntax is identical to what we used above, and the parameter estimates are as well.
+
+```{r canonical MLM 03, warning = FALSE, message = FALSE}
+mlm.lmerTest <- lmerTest::lmer(dlpfc ~ 1 + wave + (1 + wave | id),
+                               na.action = na.omit,
+                               REML = TRUE,
+                               data = executive.function.long)
+
+summary(mlm.lmerTest, correlation = FALSE)
+```
+
+### MLM Outputs
+
+The `summary()` function output, while extensive, is not formatted for publication. However, we can use a great function `tab_model()` from the [**sjPlot**](https://strengejacke.github.io/sjPlot/) package to generate publication-quality tables from the MLM output. Here we will merge the results from the **nlme** and **lmerTest** packages.
+
+```{r canonical MLM 04, warning = FALSE, message = FALSE}
+sjPlot::tab_model(mlm.nlme, mlm.lmerTest,
+                  show.se = TRUE,
+                  show.df = FALSE,
+                  show.ci = FALSE,
+                  digits = 3,
+                  pred.labels = c("Intercept", "Wave"),
+                  dv.labels = c("nlme", "lme4"),
+                  string.se = "SE",
+                  string.p = "P-Value")
+```
+
+If we wish, we can output the table into a file that we can use to incorporate it into a document using the argument `file = "/path/to/output/sjPlot_table.html"`.
+
+### MLM Plotting Model-Implied Trajectories
+
+If we want to plot the model-implied trajectories for each individual, we can use the [**ggplot2**](https://ggplot2.tidyverse.org/) package. To plot data, we need to have it in long format. Fortunately this is the format used in the MLM model so we don"t need to do anything additional. We will plot predicted values generated from the `predict()` function. While we could append these values to our `executive.function.long` dataframe in a separate step, we will instead generate the values locally within the `ggplot()` function. This will save us a step and we won"t have to deal with merging the predicted values into our dataframe or having to remove those values later. Because MLMs drop `NA` values, our predicted values will not match up to the original dataframe unless we also drop thos `NA` values, so we will use the `drop_na()` function from **tidyr**.
+
+```{r canonical MLM 05, warning = FALSE, message = FALSE}
+ggplot2::ggplot(tidyr::drop_na(executive.function.long), 
+                aes(x = wave + 1, 
+                    y = predict(mlm.lmerTest), 
+                    group = id, 
+                    color = factor(id))) +
+  geom_line() + 
+  labs(title = "Canonical MLM Trajectories",
+       x = "Wave",
+       y = "Predicted DLFPC Activation") +
+  theme(legend.position = "none") 
+```
+
+We can see that there is quite a bit of individual differences both in the initial level, but also in slopes across time, with some individuals showing increases but other showing no change or even decreases across waves. A quick tip is to always use the `theme(legend.position = "none")` function in this kind of plot unless you want the plot to try to show you each individual with the color of their trajectory line.
+
+## Generalized Additive Mixed Model
+
+We can move on to fitting a GAMM model. Unlike the other frameworks, we will use the `feedbacklearn` data with continuous age across 2 decades in this model. We could, in theory, fit the `executive.function` data, but that would largely be a waste of the GAMM framework"s potential for longitudinal analysis. Here we will utilize the [**gamm4**](https://cran.r-project.org/web/packages/gamm4/index.html) package for fitting GAMMs with the `gamm4()` function, although other options (e.g., `gamm()` or `gam()` from the [**mgcv**](https://cran.r-project.org/web/packages/mgcv/index.html) package). Fortunately, the `gamm4()` uses syntax that we are largely familiar with from fitting the MLMs in the prior section. Here we will begin by fitting a simple smooth function for values of network modularity across age. Note here that we standardize the modularity values since the natural scale results in very small variance components, and the units of modularity are not naturally meaningful anyways. To invoke the smoothing function, we wrap the `age` predictor with the `s()` function in the formula. Note that the random effects argument resembles the **nlme** syntax. For now we will allow many of the defaults to kick in, but will investigate them in turn.
+
+```{r canonical GAMM 01, warning = FALSE, message = FALSE}
+gamm <- gamm4::gamm4(scale(modularity) ~ 1 + s(age),
+                     random = ~ (1 | id),
+                     data = feedback.learning)
+```
+
+Unlike the MLM models, the GAMM results in two sets of model results from linear and nonlinear parts of the model. To access the linear model we need to specify the `mer` part of the model output. 
+
+```{r}
+summary(gamm$mer, correlation = FALSE)
+```
+
+We will ignore the `Fixed effects:` portion of the output for now because our main effect of interest is the nonlinear smooth of age and we did not include additional linear effects (we will see this more later). Focusing on the `Random effects:`, we can see that there is a little more person-to-person variability (`Groups = id`, `Name = (Intercept)`) than within-person variability (`Groups = Residual`), but they are roughly equivalent. Note that we have an "extra" random effect (`Groups = Xr`, `Name = s(age)`). Although this might lead us to believe that we have included a random within-person slope, but it is a formulation of the smooth itself as a random effect and is not terribly informative here. We *could* include a true random effect of age by expanding the formula in the `random` argument (`random = ~ (1 + age | id)`), but that model is not identified in this data and so we won't.
+
+We can then take a look at the nonlinear portion of the output by summarizing the `gam` portion of the model.
+
+```{r}
+summary(gamm$gam)
+```
+
+As before, we will mostly ignore the `Parametric coefficients:` portion (although see that the `(Intercept)` estimate is identical; this should be of concern if this wasn't the case). The `Approximate significance of smooth terms:` portion shows that we have a significant effect of age with a estimated degrees of freedom (EDF) of $4.65$. The EDF give us a shrunken estimate of the smooth complexity (higher values indicate greater complexity). However, this isn't incredibly helpful to understand the nature of the developmental effect. Instead, let's turn to the output options and see what we can find there.
+
+### GAMM Outputs
+
+Just like with MLMs, we can generate pretty tables instead of just manually typing out the console output into a word processor. We can use the `tab_model()` for the `mer` part of the output, but we need to call the `gamtabs()` function from the [**itsadug**](https://cran.r-project.org/web/packages/itsadug/index.html) package for the `gam` section.
+
+```{r canonical GAMM 02, warning = FALSE, message = FALSE, results="asis"}
+itsadug::gamtabs(gamm$gam, type = "html",
+                 pnames = c("Intercept"), snames = c("s(Age)"),
+                 caption = "Modularity as a Function of Age")
+```
+
+To visualize the results, we can call the `plot.gam()` function from the **mgcv** package (which aliases as `plot()` when the **mgcv** package is loaded). We can include the standard errors and a rug plot to show the individual age observations in our data. This can help us identify regions of the estimated trajectory that are more or less supported by the data in addition to the standard error width.
+
+```{r}
+mgcv::plot.gam(gamm$gam, se = TRUE, rug = TRUE, shade = TRUE,
+               xlab = "Age", ylab = "Fitted Modularity Values")
+```
+
+The resulting plot tells a rather interesting story about the developmental trajectory of modularity, with initial increases across early adolescence, a plateauing in mid-adolescence, and then slow declines into young adulthood. However, we can see there is a lot more uncertainty at the later ages (indicated by the sparsity in the hashes in the rug plot).
+
+## Latent Curve Model
+
+We will now turn to the longitudinal modeling within the SEM framework, beginning with the latent curve model (or latent growth model; quantitative people aren"t the best with consistent terminology sometimes). Unlike with the mixed-effects models, we will focus on a single package, [**lavaan**](https://lavaan.ugent.be/), which has become the workhorse of structural equation modeling natively in **R** (for running SEMs in **Mplus** using **R** commands, see the **MplusAutomation** package). Like with the MLM, we will fit a simple linear growth model using `wave` as our metric of time. However, unlike with the MLM, time will not appear as a specific variable in the model; rather we code time measurements directly into the factor loadings. 
+
+### LCM Syntax and Model Fitting
+
+First we will define a model syntax object that specifies the model. While we will cover the basics here, consult the [**lavaan website**](https://lavaan.ugent.be/tutorial/syntax1.html) for a more complete syntax tutorial.
+
+```{r canonical LCM 01}
+linear.lcm <- "
+              # Define the Latent Variables
+              int =~ 1*dlpfc1 + 1*dlpfc2 + 1*dlpfc3 + 1*dlpfc4
+              slp =~ 0*dlpfc1 + 1*dlpfc2 + 2*dlpfc3 + 3*dlpfc4
+              
+              # Define Factor Means
+              int ~ 1
+              slp ~ 1
+              
+              # Define Factor (Co)Variances
+              int ~~ int
+              int ~~ slp
+              slp ~~ slp
+              
+              # Define Indicator Residual Variances
+              dlpfc1 ~~ dlpfc1
+              dlpfc2 ~~ dlpfc2
+              dlpfc3 ~~ dlpfc3
+              dlpfc4 ~~ dlpfc4
+"
+```
+
+In the first section, we use the `=~` operator to define the latent variables (`int` is the intercept and `slp` is the linear slope factor). The intercept factor loadings are set by pre-multiplying the individual indicators (`dlpfc1-dlpfc4`) by values of $1$. We define the slope by pre-multiplying the indicators by linearly increasing values. Here we set the first factor loading to $0$ and each subsequent loading by increasing integers. This has the effect of estimating intercept values that reflect levels of DLPFC activation at the initial observation (where time is coded $0$) and a slope effect that is expressed in per-wave units (here this relates to per-year changes). Because of defaults built into the **lavaan** function `growth()`, we could estimate the full linear LCM with just these first two lines of code (the **Mplus** syntax is similarly simple). However, for completeness, we will write out the remainder of the model parameters for this initial model.
+
+The next two sections define the parameters of the latent variables. Here we estimate intercepts (i.e., the fixed or average intercept and slope) using the regression operator (`~`) with $1$ on the right hand side and (co)variances using the `~~` operator. Note that variances `int ~~ int` are just the covariance of a variable with itself (take a shot if that makes your head hurt a little bit). Finally, we can define the residual variances of the indicators using the same `~~` operator.
+
+We can then use the `growth()` function mentioned previously to fit the syntax we wrote to the `executive.function` data. Here we will estimate the model with Maximum Likelihood (`estimator = "ML"`) and we will allow for missing data using the `missing = "FIML"` argument. Standard alternatives might include `estimator = "MLR"` for Robust Maximum Likelihood if we have non-normal continuous data, or `estimator = WLSMV` if we have discrete data (see [the lavaan webpage](https://lavaan.ugent.be/tutorial/est.html) for a full list of available options). In general, we will always allow for missing data, but we could change to `missing = "listwise"` if we wanted to do only complete-case analysis. This option is actually the **lavaan** default, so users should be cautious that this is intended and review the number of observations used in the model to confirm intended behavior.
+
+
+```{r canonical LCM 02}
+lcm <- lavaan::growth(linear.lcm, 
+                      data = executive.function,
+                      estimator = "ML",
+                      missing = "FIML")
+```
+
+### LCM Outputs
+
+We can then summarize the model output using `summary()` with some optional arguments. While we will mostly output all of the available information, including `fit.measures`, raw (`estimates`) and standardized (`standardize`) parameter estimates, and `rsquare`, there might be cases where we are only interested in some subsection of the output. For instance, if we are building a sequence of models, we might only consult fit measures without viewing the parameters and associated inference tests so that our model selection isn"t driven by "peeking" at effects of interest.
+
+```{r canonical LCM 03}
+summary(lcm, fit.measures = TRUE, estimates = TRUE, 
+        standardize = TRUE, rsquare = TRUE)
+```
+
+One nice thing about fitting our model to the raw data instead of standardizing beforehand is that with the `standardize = TRUE` argument, we get 3 sets of parameter estimates: the raw scale estimates (under `Estimates`), the estimates when the latent variables are standardized but the indicators remain in the raw scale (under `Std.lv`), and the fully standardized solution (under `Std.all`). In the same spirit of maximizing the information from the model, we can actually re-fit the model using `estimator = "MLR"`. Here we will only output the `fit.measures` to see how the robust estimator changes our model fit information.
+
+```{r canonical LCM 04}
+lcm <- lavaan::growth(linear.lcm, 
+                      data = executive.function,
+                      estimator = "MLR",
+                      missing = "FIML")
+
+summary(lcm, fit.measures = TRUE, estimates = FALSE, 
+        standardize = FALSE, rsquare = FALSE)
+```
+
+We can see that we get a new column of robust fit statistics to accompany the standard measures which correct for the non-normality in our data. In this case, our data are not too non-normal and so there is little difference. However, this will not always be the case. To vastly over-simplify, we are looking to see if our `Model Test User Model:` test statistic is non-significant. However, be aware that this test is over-powered and will often be significant in large samples, even in a well fitting model. We also tend to look for CFI/TLI $> 0.95$, RMSEA $< 0.05$, and SRMR $< 0.08$ to indicate an excellent model fit. While these cutoff values are somewhat arbitrary, they can serve as a rough huristic, and the linear LCM more than satisfies each of these criteria. For more discussion of fit indices, consult the resources outlined in the main text. We can now jump back and orient to the parameter estimate output.
+
+```{r canonical LCM 05}
+summary(lcm, fit.measures = FALSE, estimates=  TRUE, 
+        standardize = TRUE, rsquare = TRUE)
+```
+
+The first section of parameters `Latent Variables:` is of little interest to us for now since we pre-determined these factor loadings as a part of our model (but maybe check that they are the values you expect) and there are therefore no inferential tests on these parameters. The `Covariances:` section shows us the covariance (and correlation if we asked for standardized results) between the intercept and slope. Here we can see that the correlation is strong and negative ($r = -0.499$) suggesting that those with the lowest initial levels of DLPFC activation tend to show the strongest increases in activation over time. 
+
+The `Intercepts:` section shows us the means of the latent factors and would show the conditional (denoted by a `.` before a variable name) intercepts of the indicators, but we do not estimate these values in a growth model (rather the means are reproduced by the factor means through the loadings, $\mathbf{\alpha\Lambda}$). Here we can see that the average activation at the initial timepoint is $0.543$ and the average rate of change is $0.121$ units per wave, both of which are significant.
+
+Next we have the factor variances and the indicator residual (again denoted with `.`) variances in the `Variances:` section. The variances of the intercept and slope are significant suggesting there are meaningful individual differences in initial level *and* rate of change over time. The residual variances comprise the variance of the indicator not accounted for by the latent variables in the model.
+
+Finally, we have the `R-Square:` section where the proportion of variance explained in each of the endogenous variables (here just the indicators but this could contain other endogenous observed or latent variables in other models). Conveniently, this is simply $1$ minus the standardized residual variance for each item. 
+
+We can output these parameters in a slightly more compact format using the `tidy()` function from the [**broom**](https://cran.r-project.org/web/packages/broom/vignettes/broom.html) package and pass it to the `kable()` function from the [**kableExtra**](https://cran.r-project.org/web/packages/kableExtra/vignettes/awesome_table_in_html.html) package to output a table in the `"html"` format. If we were writing a manuscript, we might alternatively wish to output the rmarkdown in PDF form and use the `format = "latex"` argument.
+
+```{r canonical LCM 06}
+broom::tidy(lcm) %>% 
+  select(-op, -std.nox) %>%
+  kableExtra::kable(label = NA,
+                    format = "html",
+                    digits = 3,
+                    booktabs = TRUE,
+                    escape = FALSE,
+                    caption = "**Linear Latent Curve Model**",
+                    align = "c",
+                    col.names=c("Parameter", "Estimate", "SE", "Statistic",
+                                "*p*-value", "Std.LV", "Std.All"),
+                    row.names = FALSE) %>% 
+  kableExtra::row_spec(row = 0, align = "c")
+```
+
+### LCM Path Diagrams
+
+We might also wish to generate a diagram visualization of the LCM model, either for model checking or for presenting results. We can use the `semPaths()` function from the [**semPlot**](http://sachaepskamp.com/semPlot/examples) package to do just that. Here we will plot the model results including the intercepts and with black paths. The `what` argument we will set to `"est"` to scale the size of the paths to the parameter estimate.
+
+```{r canonical LCM 07}
+semPlot::semPaths(lcm,
+                  what = "est",
+                  intercepts = TRUE, 
+                  edge.color = "black")
+```
+
+However, we can see that this path scaling is a little unfortunate because the integer factor loadings sort of swamp out the parameters we are primarily interested in. Instead we can change this argument to `what = "paths"` to have equally-sized paths, and then label those paths with the parameters using `whatLabels = "est"` (or `whatLabels = "std"` for standardized estimates).
+
+```{r canonical LCM 08}
+semPlot::semPaths(lcm,
+                  what = "paths",
+                  whatLabels = "est",
+                  intercepts = TRUE, 
+                  edge.color = "black")
+```
+
+Much better... By standard convention, latent variables are represented as circles, observed variables as squares, regression paths as straight single-headed arrows, and (co)variances as curved double-headed arrows. Parameters that are set to particular values rather than estimated (e.g., factor loadings here and indicator intercepts) are displayed with dashed lines.
+
+### LCM Plotting Model-Implied Trajectories
+
+Finally, like with the MLM, we might want to plot model-implied individual trajectories of DLPFC activation. We have to do a little data management song and dance to get the predicted values and then convert to long format (which we do within the `ggplot()` function directly instead of creating a new dataframe to store in memory), but the results are the same as before.
+
+```{r  canonical LCM 09}
+ggplot2::ggplot(data.frame(id=lcm@Data@case.idx[[1]], 
+                           lavPredict(lcm,type="ov")) %>% 
+                  pivot_longer(cols = starts_with("dlpfc"), 
+                               names_to = c(".value", "wave"), 
+                               names_pattern = "(.+)(.)") %>%
+                  dplyr::mutate(wave = as.numeric(wave)), 
+                aes(x = wave, 
+                    y = dlpfc, 
+                    group = id, 
+                    color = factor(id))) +
+  geom_line() + 
+  labs(title = "Canonical LCM Trajectories",
+       x = "Wave",
+       y = "Predicted DLFPC Activation") +
+  theme(legend.position = "none") 
+```
+
+
+## Latent Change Score Model
+
+Finally, we can turn the LCSM parameterization of the linear growth model. Like the LCM, the time predictor will not appear in our model syntax, but even more strangely (at first), neither will *any* values of time. Rather we will sum across latent change factors to estimate the slope across time.
+
+### Linear LCSM
+
+The main complication of the LCSM syntax relative to what we saw with the LCM is that we need to generate phantom variables from the indicators and then relate them with fixed path coefficients to the latent change factors. 
+
+```{r canonical LCSM 01}
+linear.lcsm <- "
+               # Define Phantom Variables (p = phantom)
+               pdlpfc1 =~ 1*dlpfc1; dlpfc1 ~ 0; dlpfc1 ~~ dlpfc1; pdlpfc1 ~~ 0*pdlpfc1
+               pdlpfc2 =~ 1*dlpfc2; dlpfc2 ~ 0; dlpfc2 ~~ dlpfc2; pdlpfc2 ~~ 0*pdlpfc2
+               pdlpfc3 =~ 1*dlpfc3; dlpfc3 ~ 0; dlpfc3 ~~ dlpfc3; pdlpfc3 ~~ 0*pdlpfc3
+               pdlpfc4 =~ 1*dlpfc4; dlpfc4 ~ 0; dlpfc4 ~~ dlpfc4; pdlpfc4 ~~ 0*pdlpfc4
+        
+               # Regressions Between Adjacent Observations
+               pdlpfc2 ~ 1*pdlpfc1
+               pdlpfc3 ~ 1*pdlpfc2
+               pdlpfc4 ~ 1*pdlpfc3
+        
+               # Define Change Latent Variables (delta)
+               delta21 =~ 1*pdlpfc2; delta21 ~~ 0*delta21
+               delta32 =~ 1*pdlpfc3; delta32 ~~ 0*delta32
+               delta43 =~ 1*pdlpfc4; delta43 ~~ 0*delta43
+        
+               # Define Intercept and Slope
+               int =~ 1*pdlpfc1
+               slp =~ 1*delta21 + 1*delta32 + 1*delta43
+        
+               int ~ 1
+               slp ~ 1
+               
+               int ~~ slp
+               slp ~~ slp
+"
+```
+
+In the first section, we define the phantoms (e.g., `pdlpfc1`) with four commands (separated by `;` for compactness): 1) define the phantom by the indicator with a factor loading of $1$ (`pdlpfc1 =~ 1*dlpfc1`), 2) set the intercept of the indicator to $0$ (`dlpfc1 ~ 0`), 3) estimate the residual variance of the indicator (`dlpfc1 ~~ dlpfc1`), and set the variance of the phatom to $0$ (`pdlpfc1 ~~ 0*pdlpfc1`). This, in effect, pushes the characteristics we need from the indicator variable to the phantom, which facilitates the model. 
+
+In the nexttwo sections, we set regressions of $\gamma = 1$ between adjacent phantoms variables, define the latent change factor by the phantoms after the initial time point (e.g., `delta21 =~ 1*pdlpfc2`), and set the variance of the latent change factor to zero. This may not be apparent at first blush, but the regressions of $1$ between adjacent timepoints essentially push the differences in the outcome between observations up into the latent change factors (i.e., what is left over after residualizing out the prior observation).
+
+Finally, we have the final definition of the intercept and slope factors. However, unlike the LCM, the intercept factor is only estimated from the initial phantom variable. The slope factor is defined from the latent change factors, but instead of linear factor loadings, all of these loadings are $1$ (this sums across the latent changes to give the overall linear trajectory).
+
+Like before, we will take this syntax object and use it to fit the model we specify. Unlike the LCM, we will use the `sem()` function instead because the `growth()` defaults won"t serve our purposes with the LCSM. Otherwise, the arguments we will invoke will be the same. While we display it for completeness, we will not spend much time on this output as it exactly recreates the estimates for the LCM we already walked through (we promise; or scroll back up and check). We generate a path diagram for this model as well, but do not display parameter estimates to reduce clutter.
+
+```{r canonical LCSM 02}
+lcsm.linear <- sem(linear.lcsm, 
+                   data = executive.function, 
+                   estimator = "ML",
+                   missing = "FIML")
+
+summary(lcsm.linear, fit.measures = TRUE, estimates = TRUE, standardize = TRUE, rsquare = TRUE)
+
+broom::tidy(lcsm.linear) %>% 
+  arrange(op) %>%
+  select(-op, -std.nox) %>%
+  kableExtra::kable(label = NA,
+                    format = "html",
+                    digits = 3,
+                    booktabs = TRUE,
+                    escape = FALSE,
+                    caption = "**Linear Latent Change Score Model**",
+                    align = "c",
+                    col.names=c("Parameter", "Estimate", "SE", "Statistic",
+                                "*p*-value", "Std.LV", "Std.All"),
+                    row.names = FALSE) %>% 
+  kableExtra::row_spec(row = 0, align = "c")
+
+semPlot::semPaths(lcsm.linear,
+                  layout = "tree2",
+                  intercepts = FALSE, 
+                  edge.color = "black")
+```
+
+### Linear LCSM with Proportional Change
+
+To a first approximation, the model above is an overly complicated method for estimating the same model we could do with two lines in the LCM. However, this parameterization allows us to include effects that are *not* possible to include in the LCM. To model proportional change, we regression the latent change factor on the prior timepoint phantom variable (`delta21 ~ pdlpfc1`). This effect tests how change between timepoints depends on prior level on the outcome of interest, and can be used to model interesting non-linearities (especially exponential trends). While not strictly necessary, it is common practice to create an equality constraint across all proportional effects. Here we accomplish this constraint by pre-multiplying all of these regressions with the same label (`beta`). The rest of the syntax remains the same as above.
+
+```{r canonical LCSM 03}
+proportional.lcsm <- "
+               # Define Phantom Variables (p = phantom)
+               pdlpfc1 =~ 1*dlpfc1; dlpfc1 ~ 0; dlpfc1 ~~ dlpfc1; pdlpfc1 ~~ 0*pdlpfc1
+               pdlpfc2 =~ 1*dlpfc2; dlpfc2 ~ 0; dlpfc2 ~~ dlpfc2; pdlpfc2 ~~ 0*pdlpfc2
+               pdlpfc3 =~ 1*dlpfc3; dlpfc3 ~ 0; dlpfc3 ~~ dlpfc3; pdlpfc3 ~~ 0*pdlpfc3
+               pdlpfc4 =~ 1*dlpfc4; dlpfc4 ~ 0; dlpfc4 ~~ dlpfc4; pdlpfc4 ~~ 0*pdlpfc4
+        
+               # Regressions Between Adjacent Observations
+               pdlpfc2 ~ 1*pdlpfc1
+               pdlpfc3 ~ 1*pdlpfc2
+               pdlpfc4 ~ 1*pdlpfc3
+        
+               # Define Change Latent Variables (delta)
+               delta21 =~ 1*pdlpfc2; delta21 ~~ 0*delta21
+               delta32 =~ 1*pdlpfc3; delta32 ~~ 0*delta32
+               delta43 =~ 1*pdlpfc4; delta43 ~~ 0*delta43
+               
+               # Define Proportional Change Regressions (beta = equality constraint)
+               delta21 ~ beta*pdlpfc1
+               delta32 ~ beta*pdlpfc2
+               delta43 ~ beta*pdlpfc3
+        
+               # Define Intercept and Slope
+               int =~ 1*pdlpfc1
+               slp =~ 1*delta21 + 1*delta32 + 1*delta43
+        
+               int ~ 1
+               slp ~ 1
+               
+               int ~~ slp
+               slp ~~ slp
+"
+
+lcsm.proportional <- sem(proportional.lcsm, 
+                         data = executive.function, 
+                         estimator = "ML",
+                         missing = "FIML")
+```
+
+We will just focus here on the parameter estimate for the proportional effect (`beta`), which is negative, but non-significant ($\gamma = -0.090, SE = 0.276, p = 0.745$). If we were to interpret this parameter, we would say that those with higher levels at prior timepoints tend to show less positive changes between adjacent timepoints (we would need to interpret these in light of the fixed effects to be certain if this is smaller increases or greater decreases). Interestingly, note that this is similar in kind to the factor covariance we interpreted in the LCM. If we examine that same parameter here, we can see that the correlation has been attenuated ($r = -0.295$) and is now non-significant. Indeed all the parameter estimates have now changed because we have introduced this new proportional  effect.
+
+```{r canonical LCSM 04}
+summary(lcsm.proportional, fit.measures = FALSE, estimates = TRUE, 
+        standardize = FALSE, rsquare = FALSE)
+```
+
+Like before, we can generate tables, a path diagram, and plot model-implied individual trajectories. Note that the proportional model does not generate noticeably non-linear implied trajectories due to the very weak proportional effect.
+
+```{r canonical LCSM 05}
+broom::tidy(lcsm.proportional) %>% 
+  arrange(op) %>%
+  select(-op, -std.nox) %>%
+  kableExtra::kable(label = NA,
+                    format = "html",
+                    digits = 3,
+                    booktabs = TRUE,
+                    escape = FALSE,
+                    caption = "**Linear Latent Change Score Model with Proportional Change**",
+                    align = "c",
+                    col.names=c("Parameter", "Label", "Estimate", "SE", "Statistic",
+                                "*p*-value", "Std.LV", "Std.All"),
+                    row.names = FALSE) %>% 
+  kableExtra::row_spec(row = 0, align = "c")
+
+semPlot::semPaths(lcsm.proportional,
+                  layout = "tree2",
+                  intercepts = FALSE, 
+                  edge.color = "black")
+
+ggplot2::ggplot(data.frame(id=lcsm.proportional@Data@case.idx[[1]], 
+                           lavPredict(lcsm.proportional,type="ov")) %>% 
+                  pivot_longer(cols = starts_with("dlpfc"), 
+                               names_to = c(".value", "wave"), 
+                               names_pattern = "(.+)(.)") %>%
+                  dplyr::mutate(wave = as.numeric(wave)), 
+                aes(x = wave, 
+                    y = dlpfc, 
+                    group = id, 
+                    color = factor(id))) +
+  geom_line() + 
+  labs(title = "Canonical Proportional LCSM Trajectories",
+       x = "Wave",
+       y = "Predicted DLFPC Activation") +
+  theme(legend.position = "none") 
+```
+
+```{r, cleanup canon, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
+rm(list = ls(all.names = FALSE))
+```

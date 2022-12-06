@@ -1,0 +1,5 @@
+TITLE: Your title goes here
+DATA: FILE = "~/Dropbox/Professional/projects/quant/primer/github/1.data/01-canonical.dat";
+VARIABLE: 
+NAMES = id dlpfc1 dlpfc2 dlpfc3 dlpfc4; 
+MISSING=.;

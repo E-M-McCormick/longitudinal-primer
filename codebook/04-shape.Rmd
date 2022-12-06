@@ -1,0 +1,760 @@
+# The Shape of Development {#shape}
+
+However, we define the underlying metric of time to structure our longitudinal model, one of the key substantive questions often underlying work in developmental science is to characterize the course that a given construct takes over time. Here we will highlight many of the different developmental trajectories that we can fit to our data, starting with relatively simple polynomial shapes and working our way up to modeling fully nonlinear trends. In addition to the `feedback.learning` data we have used thus far, we will also use data drawn from the `external-math.csv` and `adversity.csv` files. The `external.math` data contains up to $5$ repeated observations from $405$ children aged $6$ to $14$, measured once every $2$ years. Here we will focus on measures of externalizing behavior and math proficiency. The `adversity` data contains fractional anisotropy (FA) measures from $398$ children measured up to $4$ times across ages $4$ to $11$. We previously used a subset of this data in the [Time](#time) chapter, but here we will utilize the entire sample.
+
+```{r read data shape, message = FALSE, warning = FALSE, error = FALSE}
+external.math <- read.csv("data/external-math.csv")
+
+adversity <- read.csv("data/adversity.csv")
+
+feedback.learning <- read.csv("data/feedback-learning.csv") %>% 
+  select(id, age, modularity, learning.rate)
+```
+
+## Polynomial Trajectories
+
+Like we discussed in the main text, polynomial trajectories are far and away the most common trajectories modeled with longitudinal data. They require relatively few unique timepoints, are straightforward to model, and offer easily-interpretable parameter estimates.
+
+### Intercept-Only Model
+
+We can first consider the simplest polynomial model, one without even a slope. The intercept-only model simply models person-specific differences in average level across time. We can start here with the LCM, which makes the various specifications easiest to see, but we will also build syntax for models in the other frameworks.
+
+```{r polynomials 01, message = FALSE, warning = FALSE, error = FALSE}
+int.lcm <- "int =~ 1*ext6 + 1*ext8 + 1*ext10 + 1*ext12 + 1*ext14"
+
+int.lcm.fit <- growth(int.lcm, 
+                      data = external.math,
+                      estimator = "ML",
+                      missing = "FIML")
+
+summary(int.lcm.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = FALSE, rsquare = FALSE)
+```
+
+We can see that there is significant variance in the intercept factor, suggesting meaningful person-to-person variability in level of externalizing behavior during late childhood and early adolescence. While this might seem a somewhat silly model to fit to these data, this is one half of a random-intercept cross-lag panel model and might be appropriate if we do not expect systematic change over time. However, these intercept-only models are admittedly more plausible for intensive longitudinal data. The MLM specification for this model can be seen below. We will first transform the data into long format before fitting the model.
+
+```{r polynomials 02, message = FALSE, warning = FALSE, error = FALSE}
+external.math.long <- external.math %>% 
+  pivot_longer(cols = starts_with(c("ext", "math")), 
+                      names_to = c(".value", "age"), 
+                      names_pattern = "(ext|math)(.+)") %>%
+  mutate(age = as.numeric(age))
+
+int.mlm <- lmer(ext ~ 1 + (1 | id),
+                na.action = na.omit,
+                REML = TRUE,
+                data = external.math.long)
+
+summary(int.mlm, correlation = FALSE)
+```
+
+Note that this is just a random-effects ANOVA model with no predictors.
+
+### Linear Model
+
+We will move quickly through the linear polynomial models because we have covered them extensively thus far. Below is the syntax for the linear LCM. Remember that assessments are biannual so factor loadings should increase by two for each wave.
+
+```{r polynomials 03, message = FALSE, warning = FALSE, error = FALSE}
+lin.lcm <- "int =~ 1*ext6 + 1*ext8 + 1*ext10 + 1*ext12 + 1*ext14
+            slp =~ 0*ext6 + 2*ext8 + 4*ext10 + 6*ext12 + 8*ext14"
+
+lin.lcm.fit <- growth(lin.lcm, 
+                      data = external.math,
+                      estimator = "ML",
+                      missing = "FIML")
+
+summary(lin.lcm.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = FALSE, rsquare = FALSE)
+```
+
+While we have ignored model fit for most models, one nice thing about many of these models, is that they are nested and allow for formal model comparison with likelihood ratio tests, similar to those we saw with hetero- vs. homoscedastic residuals. For instance, we can compare the intercept-only with a linear model.
+
+```{r polynomials 04, message = FALSE, warning = FALSE, error = FALSE}
+lavTestLRT(int.lcm.fit, lin.lcm.fit)
+```
+Remember that we compare whether the more constrained model (here the intercept-only) induces a significant *decrease* in model fit. Here this is true, suggesting that we should retain the linear model over the intercept-only model. If we take a peak at the model fit, this is because the linear model fits the data reasonably well, while the intercept-only model is quite poor in terms of fit.
+
+```{r polynomials 05, message = FALSE, warning = FALSE, error = FALSE}
+summary(int.lcm.fit, fit.measures = TRUE, estimates = FALSE, 
+        standardize = FALSE, rsquare = FALSE)
+
+summary(lin.lcm.fit, fit.measures = TRUE, estimates = FALSE, 
+        standardize = FALSE, rsquare = FALSE)
+```
+
+To fit the corresponding MLM, we first need to generate our linear predictor as an observed variable in our data frame (and will need to do so each time we increase the order of the model). Here we will generate the linear predictor by simply subtracting $6$ from the `age` variable.
+
+```{r polynomials 06, message = FALSE, warning = FALSE, error = FALSE}
+external.math.long$age <- external.math.long$age - min(external.math.long$age)
+
+lin.mlm <- lmer(ext ~ 1 + age + (1 + age | id),
+                na.action = na.omit,
+                REML = TRUE,
+                data = external.math.long,
+                control = lmerControl(optimizer = "bobyqa",
+                                      optCtrl = list(maxfun = 2e5)))
+
+summary(lin.mlm, correlation = FALSE)
+```
+
+And the model comparison reveals the same preference for the linear model. Note that the model is re-estimated with ML [FIML] because the two models contain different fixed effects. REML models can be compared when the models differ only in the variance structure. Fortunately this will be done automatically so we don't have to "manually" re-estimate the models.
+
+```{r polynomials 07, message = FALSE, warning = FALSE, error = FALSE}
+anova(int.mlm, lin.mlm)
+```
+
+Finally, we can see a version of the linear LCSM for the `external.math` data below. Note again that biannual observations mean that we need to set the factor loadings for the slope factor to $2$ instead of $1$ to indicate the spacing appropriately.
+
+```{r polynomials 08, message = FALSE, warning = FALSE, error = FALSE}
+lin.lcsm <- "
+            # Define Phantom Variables (p = phantom)
+            pext6 =~ 1*ext6; ext6 ~ 0; ext6 ~~ ext6; pext6 ~~ 0*pext6
+            pext8 =~ 1*ext8; ext8 ~ 0; ext8 ~~ ext8; pext8 ~~ 0*pext8
+            pext10 =~ 1*ext10; ext10 ~ 0; ext10 ~~ ext10; pext10 ~~ 0*pext10
+            pext12 =~ 1*ext12; ext12 ~ 0; ext12 ~~ ext12; pext12 ~~ 0*pext12
+            pext14 =~ 1*ext14; ext14 ~ 0; ext14 ~~ ext14; pext14 ~~ 0*pext14
+        
+            # Regressions Between Adjacent Observations
+            pext8 ~ 1*pext6
+            pext10 ~ 1*pext8
+            pext12 ~ 1*pext10
+            pext14 ~ 1*pext12
+        
+            # Define Change Latent Variables (delta)
+            delta21 =~ 1*pext8;  delta21 ~~ 0*delta21
+            delta32 =~ 1*pext10; delta32 ~~ 0*delta32
+            delta43 =~ 1*pext12; delta43 ~~ 0*delta43
+            delta54 =~ 1*pext14; delta54 ~~ 0*delta54
+        
+            # Define Intercept and Slope
+            int =~ 1*pext6
+            slp =~ 2*delta21 + 2*delta32 + 2*delta43 + 2*delta54
+        
+            int ~ 1
+            slp ~ 1
+            
+            int ~~ slp
+            slp ~~ slp
+"
+
+lin.lcsm.fit <- sem(lin.lcsm, 
+                    data = external.math, 
+                    estimator = "ML",
+                    missing = "FIML")
+
+summary(lin.lcsm.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = FALSE, rsquare = FALSE)
+```
+
+### Quadratic Model 
+
+Next, we can add an additional factor to capture quadratic curvature in our data. Below is the LCM syntax for this model. Note that this is an extremely straightforward expansion of the syntax we have seen thus far. While this won't be the case here, sometimes we need to worry about numerically large factor loadings causing some estimation issues in practice (nothing theoretical is wrong with large factor loadings). In those instances, we could divide our factor loadings by some constant to control those values from getting to large (although this will change the interpretation of a per-unit change).
+
+```{r polynomials 09, message = FALSE, warning = FALSE, error = FALSE}
+quad.lcm <- "int  =~ 1*ext6 + 1*ext8 + 1*ext10 + 1*ext12 + 1*ext14
+             slp  =~ 0*ext6 + 2*ext8 + 4*ext10 + 6*ext12 + 8*ext14
+             quad =~ 0*ext6 + 4*ext8 + 16*ext10 + 36*ext12 + 64*ext14"
+
+quad.lcm.fit <- growth(quad.lcm, 
+                       data = external.math,
+                       estimator = "ML",
+                       missing = "FIML")
+
+summary(quad.lcm.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = TRUE, rsquare = FALSE)
+
+lavTestLRT(lin.lcm.fit, quad.lcm.fit)
+```
+
+The MLM syntax is similarly straightforward. To add a powered term, we can use the `I()` function, or the `poly()` function if we wished to use orthogonal polynomials.
+
+```{r polynomials 10, message = FALSE, warning = FALSE, error = FALSE}
+quad.mlm <- lmer(ext ~ 1 + age + I(age^2) + (1 + age + I(age^2) | id),
+                 na.action = na.omit,
+                 REML = TRUE,
+                 data = external.math.long,
+                 control = lmerControl(optimizer = "bobyqa",
+                                       optCtrl = list(maxfun = 2e5)))
+
+summary(quad.mlm, correlation = FALSE)
+```
+
+While these models converge without too much issue here, note the strong correlation between the linear and quadratic terms, suggesting that the quadratic term is largely redundant. This is often the case with low numbers of repeated measures. We can technically fit some non-linearities, but they may not be particularly well-specified.
+
+The LCSM syntax requires a bit more explanation. The quadratic model is shown below.
+
+```{r polynomials 11, message = FALSE, warning = FALSE, error = FALSE}
+quad.lcsm <- "
+             # Define Phantom Variables (p = phantom)
+             pext6 =~ 1*ext6; ext6 ~ 0; ext6 ~~ ext6; pext6 ~~ 0*pext6
+             pext8 =~ 1*ext8; ext8 ~ 0; ext8 ~~ ext8; pext8 ~~ 0*pext8
+             pext10 =~ 1*ext10; ext10 ~ 0; ext10 ~~ ext10; pext10 ~~ 0*pext10
+             pext12 =~ 1*ext12; ext12 ~ 0; ext12 ~~ ext12; pext12 ~~ 0*pext12
+             pext14 =~ 1*ext14; ext14 ~ 0; ext14 ~~ ext14; pext14 ~~ 0*pext14
+        
+             # Regressions Between Adjacent Observations
+             pext8 ~ 1*pext6
+             pext10 ~ 1*pext8
+             pext12 ~ 1*pext10
+             pext14 ~ 1*pext12
+        
+             # Define Change Latent Variables (delta)
+             delta21 =~ 1*pext8;  delta21 ~~ 0*delta21
+             delta32 =~ 1*pext10; delta32 ~~ 0*delta32
+             delta43 =~ 1*pext12; delta43 ~~ 0*delta43
+             delta54 =~ 1*pext14; delta54 ~~ 0*delta54
+        
+             # Define Intercept and Slope
+             int  =~ 1*pext6
+             slp  =~ 2*delta21 + 2*delta32 + 2*delta43 + 2*delta54
+             quad =~ 4*delta21 + 12*delta32 + 20*delta43 + 28*delta54 
+        
+             int  ~ 1
+             slp  ~ 1
+             quad ~ 1
+            
+             int ~~ slp
+             int ~~ quad
+             slp ~~ slp
+             slp ~~ quad
+             quad ~~ quad
+"
+```
+
+We talked in the [Canonical](#canon) chapter about how the loadings for the linear factor were all $1$, and this could be thought of as summing across the difference factors. Another way to think of this specification is that the factor loadings for the LCSM are the *differences* between successive loadings for the LCM. In the standard linear case, these are all $1$s to indicate a constant effect across units of time, whereas in our example in this chapter, they are all differences of $2$ to reflect biannual observations. The same principle can be applied to the loadings for higher-order factors in the LCSM. For a quadratic factor, the LCM loadings are [$0$, $4$, $16$, $36$, $64$], and therefore the LCSM loadings should be [($4 - 0$), ($16 - 4$), ($36 - 16$), ($64 - 36$)] = [$4$, $12$, $20$, $28$]. As a sanity check, we can fit this model and the parameter estimates should match the LCM results exactly.
+
+```{r polynomials 12, message = FALSE, warning = FALSE, error = FALSE}
+quad.lcsm.fit <- sem(quad.lcsm,
+                     data = external.math, 
+                     estimator = "ML",
+                     missing = "FIML")
+
+summary(quad.lcsm.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = TRUE, rsquare = FALSE)
+
+lavTestLRT(lin.lcsm.fit, quad.lcsm.fit)
+```
+
+### Inverse Model
+
+The final polynomial model we will consider is the inverse model. Unlike the quadratic curvature which reverses, the inverse curve approaches a plateau asymptotically. We can do a quick algebraic transformation to make the factor loadings tractable by inverting the original (i.e., not centered) values and subtracting them from $1$. So for linear loadings [$1$, $3$, $5$, $7$, $9$], we would have inverse factor loadings [$1 - (1/1)$, $1 - (1/3)$, $1 - (1/5)$, $1 - (1/7)$, $1 - (1/9)$] or [$0$, $2/3$, $4/5$, $6/7$, $8/9$]. Inverting the original loadings avoids trying to take the reciprocal of 0 (which results in 6 more weeks of COVID variants) and subtracting from one specifies an upper rather than lower bound effect (this won't change the nature of the effect, it just makes the sign easier to interpret).
+
+```{r polynomials 13, message = FALSE, warning = FALSE, error = FALSE}
+inv.lcm <- "int =~ 1*ext6 + 1*ext8 + 1*ext10 + 1*ext12 + 1*ext14
+            slp =~ 0*ext6 + 2*ext8 + 4*ext10 + 6*ext12 + 8*ext14
+            inv =~ 0*ext6 + (2/3)*ext8 + (4/5)*ext10 + (6/7)*ext12 + (7/8)*ext14"
+
+inv.lcm.fit <- growth(inv.lcm, 
+                      data = external.math,
+                      estimator = "ML",
+                      missing = "FIML")
+
+summary(inv.lcm.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = TRUE, rsquare = FALSE)
+
+lavTestLRT(lin.lcm.fit, inv.lcm.fit)
+```
+
+Note that we are comparing the inverse and linear models, not the inverse and quadratic. This is because while the linear model is nested within both quadratic and inverse models, the two are not nested with respect to one another. However, we might graphically examine the trends implied by the model for a moment.
+
+```{r polynomials 14, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
+ggplot(data.frame(id=quad.lcm.fit@Data@case.idx[[1]], 
+                           lavPredict(quad.lcm.fit,type="ov")) %>% 
+                  pivot_longer(cols = starts_with("ext"), 
+                               names_to = c(".value", "age"), 
+                               names_pattern = "(ext)(.+)") %>%
+                  dplyr::mutate(age = as.numeric(age)), 
+                aes(x = age, 
+                    y = ext, 
+                    group = id, 
+                    color = factor(id))) +
+  geom_line() + 
+  labs(title = "Quadratic LCM Trajectories",
+       x = "Age",
+       y = "Predicted Externalizing Behavior") +
+  theme(legend.position = "none") 
+
+ggplot(data.frame(id=inv.lcm.fit@Data@case.idx[[1]], 
+                           lavPredict(inv.lcm.fit,type="ov")) %>% 
+                  pivot_longer(cols = starts_with("ext"), 
+                               names_to = c(".value", "age"), 
+                               names_pattern = "(ext)(.+)") %>%
+                  dplyr::mutate(age = as.numeric(age)), 
+                aes(x = age, 
+                    y = ext, 
+                    group = id, 
+                    color = factor(id))) +
+  geom_line() + 
+  labs(title = "Inverse LCM Trajectories",
+       x = "Age",
+       y = "Predicted Externalizing Behavior") +
+  theme(legend.position = "none") 
+```
+
+What should be visually apparent is that we get quite a few flips in the direction of curvature in the inverse compared to the quadratic model. Indeed the quadratic effect is negative ($-0.015$) and the inverse effect is positive ($0.513$). This sensitivity is likely another indication that curvature is really over-fitting noise in these data rather than reflecting some true non-linearity. Below are how to achieve this model with the MLM:
+
+```{r polynomials 15, message = FALSE, warning = FALSE, error = FALSE}
+external.math.long$age_inv <- 1 - (external.math.long$age + 1)^(-1)
+
+inv.mlm <- lmer(ext ~ 1 + age + age_inv + (1 + age + age_inv | id),
+                na.action = na.omit,
+                REML = TRUE,
+                data = external.math.long,
+                control = lmerControl(optimizer = "bobyqa",
+                                      optCtrl = list(maxfun = 2e5)))
+
+summary(inv.mlm, correlation = FALSE)
+
+anova(lin.mlm, inv.mlm)
+```
+
+and LCSM (note that the subtraction method gets a little messy for the slope loadings):
+
+```{r polynomials 16, message = FALSE, warning = FALSE, error = FALSE}
+inv.lcsm <- "
+            # Define Phantom Variables (p = phantom)
+            pext6 =~ 1*ext6; ext6 ~ 0; ext6 ~~ ext6; pext6 ~~ 0*pext6
+            pext8 =~ 1*ext8; ext8 ~ 0; ext8 ~~ ext8; pext8 ~~ 0*pext8
+            pext10 =~ 1*ext10; ext10 ~ 0; ext10 ~~ ext10; pext10 ~~ 0*pext10
+            pext12 =~ 1*ext12; ext12 ~ 0; ext12 ~~ ext12; pext12 ~~ 0*pext12
+            pext14 =~ 1*ext14; ext14 ~ 0; ext14 ~~ ext14; pext14 ~~ 0*pext14
+        
+            # Regressions Between Adjacent Observations
+            pext8 ~ 1*pext6
+            pext10 ~ 1*pext8
+            pext12 ~ 1*pext10
+            pext14 ~ 1*pext12
+        
+            # Define Change Latent Variables (delta)
+            delta21 =~ 1*pext8;  delta21 ~~ 0*delta21
+            delta32 =~ 1*pext10; delta32 ~~ 0*delta32
+            delta43 =~ 1*pext12; delta43 ~~ 0*delta43
+            delta54 =~ 1*pext14; delta54 ~~ 0*delta54
+        
+            # Define Intercept and Slope
+            int =~ 1*pext6
+            slp =~ 2*delta21 + 2*delta32 + 2*delta43 + 2*delta54
+            inv =~ (2/3)*delta21 + (2/15)*delta32 + (2/35)*delta43 + (1/56)*delta54 
+        
+            int ~ 1
+            slp ~ 1
+            inv ~ 1
+            
+            int ~~ slp
+            int ~~ inv
+            slp ~~ slp
+            slp ~~ inv
+            inv ~~ inv
+"
+
+inv.lcsm.fit <- sem(inv.lcsm,
+                    data = external.math, 
+                    estimator = "ML",
+                    missing = "FIML")
+
+summary(inv.lcsm.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = TRUE, rsquare = FALSE)
+
+lavTestLRT(lin.lcsm.fit, inv.lcsm.fit)
+```
+
+## Piecewise Trajectories
+
+If we do not think that a single polynomial function can sufficiently capture a complex trajectory, we might consider bolting two (or more) polynomial functions together using a piecewise approach. Here we will use the `adversity` data which covers $8$ years of childhood (ages $4-11$). The simplest piecewise trajectory can be constructed two distinct linear pieces joined at a knot point. We need at least 3 time points to specify a line but the pieces can share a time point at the knot point. This means we need a minimum of $5$ time points in order to fit even the simplest piecewise model. Note that with this minimum, the knot point is constrained to be at the middle time point, and the knot can never be placed at the first or last two time points because of the 3 time point requirement to estimate the linear slope. Note that as we discussed before, these time point requirements can be accomodated at the group level, and no one individual need be observed $5$ or more times. Indeed this is the case here, where no individual is measured more than $4$ times.
+
+There are two general approaches for specifying piecewise models. The first, and more common, approach is the two-rate specification, where each effect can be interpreted in isolation like a regular linear model. We  specify the two-rate LCM using the syntax below. Note that we code the factor loadings in such a way that the intercept is at the knot point (age 8).
+
+```{r piecewise 01, message = FALSE, warning = FALSE, error = FALSE}
+two.rate <- "int  =~ 1*fmin4 + 1*fmin5 + 1*fmin6 + 1*fmin7 + 
+                     1*fmin8 + 1*fmin9 + 1*fmin10 + 1*fmin11
+             slp1 =~ -3*fmin4 + -2*fmin5 + -1*fmin6 + 0*fmin7 + 
+                     0*fmin8 + 0*fmin9 + 0*fmin10 + 0*fmin11
+             slp2 =~ 0*fmin4 + 0*fmin5 + 0*fmin6 + 0*fmin7 + 
+                     1*fmin8 + 2*fmin9 + 3*fmin10 + 4*fmin11
+"
+
+two.rate.fit <- growth(two.rate,
+                       data = adversity,
+                       estimator = "ML",
+                       missing = "FIML")
+
+summary(two.rate.fit, fit.measures = FALSE, estimates = TRUE,
+        standardize = TRUE, rsquare = FALSE)
+
+ggplot(data.frame(id=two.rate.fit@Data@case.idx[[1]], 
+                           lavPredict(two.rate.fit,type="ov")) %>% 
+                  pivot_longer(cols = starts_with("fmin"), 
+                               names_to = c(".value", "age"), 
+                               names_pattern = "(fmin)(.+)") %>%
+                  dplyr::mutate(age = as.numeric(age)), 
+                aes(x = age, 
+                    y = fmin, 
+                    group = id, 
+                    color = factor(id))) +
+  geom_line() + 
+  labs(title = "2-Rate Piecewise LCM Trajectories",
+       x = "Age",
+       y = "Predicted Forceps Minor Microstructure") +
+  theme(legend.position = "none") 
+```
+
+The second approach is the added-rate approach where the second slope is defined as the deflection from the original trajectory. We can see this approach below.
+
+```{r piecewise 02, message = FALSE, warning = FALSE, error = FALSE}
+add.rate <- "int  =~ 1*fmin4 + 1*fmin5 + 1*fmin6 + 1*fmin7 + 
+                     1*fmin8 + 1*fmin9 + 1*fmin10 + 1*fmin11
+             slp1 =~ -3*fmin4 + -2*fmin5 + -1*fmin6 + 0*fmin7 + 
+                     1*fmin8 + 2*fmin9 + 3*fmin10 + 4*fmin11
+             slp2 =~ 0*fmin4 + 0*fmin5 + 0*fmin6 + 0*fmin7 + 
+                     1*fmin8 + 2*fmin9 + 3*fmin10 + 4*fmin11
+"
+
+add.rate.fit <- growth(add.rate,
+                       data = adversity,
+                       estimator = "ML",
+                       missing = "FIML")
+
+summary(add.rate.fit, fit.measures = FALSE, estimates = TRUE,
+        standardize = TRUE, rsquare = FALSE)
+```
+
+Note that whichever approach we take, the models fit the data identically. This means that the choice between these two specifications should be guided by theoretical considerations of which type of effect you would prefer to interpret.
+
+Of course, the models we have seen thus far in this section are the simplest linear-linear piecewise functions we can specify. We could even better specify these linear pieces with additional time points, or we could potentially increase the polynomial order of one or more of the pieces. This could be a great way to model nonlinear growth followed by a plateau for instance. Below, we demonstrate a quadratic-linear piecewise function that could capture this type of growth pattern. To identify this model, we can use trial-level data from the `feedback.learning` dataset source, with 4 trials specifying the quadratic initial piece, and the remaining trials specifying the second linear slope. Below we show the code to fit and visualize this model.
+
+```{r piecewise 03, message = FALSE, warning = FALSE, error = FALSE}
+trials <- read.csv("data/trials.csv")
+
+quad.rate <- "int =~ 1*trial.1 + 1*trial.2 + 1*trial.3 + 1*trial.4 + 
+                     1*trial.5 + 1*trial.6 + 1*trial.7
+             slp1 =~ -3*trial.1 + -2*trial.2 + -1*trial.3 + 0*trial.4 + 
+                     0*trial.5 + 0*trial.6 + 0*trial.7
+             quad =~ 9*trial.1 + 4*trial.2 + 1*trial.3 + 0*trial.4 + 
+                     0*trial.5 + 0*trial.6 + 0*trial.7        
+             slp2 =~ 0*trial.1 + 0*trial.2 + 0*trial.3 + 0*trial.4 + 
+                     1*trial.5 + 2*trial.6 + 3*trial.7
+             
+"
+
+quad.rate.fit <- growth(quad.rate,
+                       data = trials,
+                       estimator = "ML",
+                       missing = "FIML")
+
+summary(quad.rate.fit, fit.measures = FALSE, estimates = TRUE,
+        standardize = TRUE, rsquare = FALSE)
+
+ggplot(data.frame(id=quad.rate.fit@Data@case.idx[[1]], 
+                           lavPredict(quad.rate.fit,type="ov")) %>% 
+                  pivot_longer(cols = starts_with("trial"), 
+                               names_to = c(".value", "num"), 
+                               names_pattern = "(trial).(.)") %>%
+                  dplyr::mutate(num = as.numeric(num)), 
+                aes(x = num, 
+                    y = trial, 
+                    group = id, 
+                    color = factor(id))) +
+  geom_line() + 
+  labs(title = "Quadradic-Linear Piecewise LCM Trajectories",
+       x = "Age",
+       y = "Predicted Externalizing Behavior") +
+  theme(legend.position = "none") 
+
+```
+
+To fit piecewise models in the MLM, we simply create observed variables that correspond to the factor loadings we specified in the LCM code. Below we show how to generate these observed varaiables and the syntax to fit the two-rate version of the linear-linear model.
+
+```{r piecewise 04, message = FALSE, warning = FALSE, error = FALSE}
+adversity.long <- adversity %>% 
+  pivot_longer(cols = starts_with("fmin"), 
+               names_to = c(".value", "age"), 
+               names_pattern = "(fmin)(.+)") %>%
+  mutate(age = as.numeric(age),
+         slp1 = ifelse(age > 7, 0, age - 7),
+         slp2 = ifelse(age < 7, 0, age - 7),
+         quad = ifelse(age > 7, 0, (age - 7)^2))
+
+two.rate.mlm <- lmer(fmin ~ 1 + slp1 + slp2 + (1 + slp1 + slp2 | id),
+                     na.action = na.omit,
+                     REML = TRUE,
+                     data = adversity.long,
+                     control = lmerControl(optimizer = "bobyqa",
+                                           optCtrl = list(maxfun = 2e5)))
+summary(two.rate.mlm)
+```
+
+Fitting the piecewise model in the LCSM framework requires some additional work and unless we wish to include the dual-change effects, these models could be more-simply implemented as LCMs. This is due to a general complication in LCSMs if we wish to place the intercept anywhere except at the initial timepoint. If we look below at the `Regressions Between Adjacent Observations` section of the code below, we can see that for timepoints that come before the intercept (here before the knot point) we actually regression *earlier* timepoints on *later* timepoints. This reversal of the intuitive temporal order allows the LCSM to mimic the negative factor loadings in the LCM. Note also that the intercept timepoint (here `pfmin7`) appears twice, predicting the timepoint both before and after it. Finally, the loadings of the timepoints prior to the intercept load at a $-1$ on the delta factors rather than a $1$ as usual. The remainder of the model follows the conventions we are accustomed, but we comment below on the specific changes needed here.
+
+```{r piecewise 05, message = FALSE, warning = FALSE, error = FALSE}
+two.rate.lcsm <- "
+            # Define Phantom Variables (p = phantom)
+            pfmin4 =~ 1*fmin4; fmin4 ~ 0; fmin4 ~~ fmin4; pfmin4 ~~ 0*fmin4
+            pfmin5 =~ 1*fmin5; fmin5 ~ 0; fmin5 ~~ fmin5; pfmin5 ~~ 0*fmin5
+            pfmin6 =~ 1*fmin6; fmin6 ~ 0; fmin6 ~~ fmin6; pfmin6 ~~ 0*fmin6
+            pfmin7 =~ 1*fmin7; fmin7 ~ 0; fmin7 ~~ fmin7; pfmin7 ~~ 0*fmin7
+            pfmin8 =~ 1*fmin8; fmin8 ~ 0; fmin8 ~~ fmin8; pfmin8 ~~ 0*fmin8
+            pfmin9 =~ 1*fmin9; fmin9 ~ 0; fmin9 ~~ fmin9; pfmin9 ~~ 0*fmin9
+            pfmin10 =~ 1*fmin10; fmin10 ~ 0; fmin10 ~~ fmin10; pfmin10 ~~ 0*fmin10
+            pfmin11 =~ 1*fmin11; fmin11 ~ 0; fmin11 ~~ fmin11; pfmin11 ~~ 0*fmin11
+            
+            # Regressions Between Adjacent Observations
+            pfmin4 ~ 1*pfmin5  # temporal order reversed before intercept
+            pfmin5 ~ 1*pfmin6
+            pfmin6 ~ 1*pfmin7
+            pfmin8 ~ 1*pfmin7  # intercept time point appears twice
+            pfmin9 ~ 1*pfmin8
+            pfmin10 ~ 1*pfmin9
+            pfmin11 ~ 1*pfmin10
+            
+            # Define Change Latent Variables (delta)
+            # loadings prior to the intercept are negative
+            delta21 =~ -1*pfmin4;  delta21 ~~ 0*delta21 
+            delta32 =~ -1*pfmin5;  delta32 ~~ 0*delta32
+            delta43 =~ -1*pfmin6;  delta43 ~~ 0*delta43
+            
+            # loadings after the intercept are as usual
+            delta54 =~ 1*pfmin8;  delta54 ~~ 0*delta54
+            delta65 =~ 1*pfmin9;  delta65 ~~ 0*delta65
+            delta76 =~ 1*pfmin10;  delta76 ~~ 0*delta76
+            delta87 =~ 1*pfmin11;  delta87 ~~ 0*delta87
+            
+            # Define Intercept and Slope
+            int  =~ 1*pfmin7
+            slp1 =~ 1*delta21 + 1*delta32 + 1*delta43
+            slp2 =~ 1*delta54 + 1*delta65 + 1*delta76 + 1*delta87
+        
+            int ~ 1; slp1 ~ 1; slp2 ~ 1
+            
+            slp1 ~~ slp1
+            slp2 ~~ slp2
+            int ~~ slp1 + slp2
+            slp1 ~~ slp2
+"
+two.rate.lcsm.fit <- sem(two.rate.lcsm,
+                         data = adversity, 
+                         estimator = "ML",
+                         missing = "FIML")
+
+summary(two.rate.lcsm.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = TRUE, rsquare = FALSE)
+```
+
+If we wish to include proportional change into this model, there is another additional oddity. For the beta parameters prior to the intercept, we actually create a cycle in our model (in technical terms the model is non-recursive), where the delta factor that a given phantom loads on is then regressed on that same phantom variable. The model remains identified, however, because the loading is fixed to $-1$ while the proportional effect is freely estimated. The relevant syntax is below.
+
+```{r piecewise 06, message = FALSE, warning = FALSE, error = FALSE}
+two.rate.prop.lcsm <- "
+            # Define Phantom Variables (p = phantom)
+            pfmin4 =~ 1*fmin4; fmin4 ~ 0; fmin4 ~~ fmin4; pfmin4 ~~ 0*fmin4
+            pfmin5 =~ 1*fmin5; fmin5 ~ 0; fmin5 ~~ fmin5; pfmin5 ~~ 0*fmin5
+            pfmin6 =~ 1*fmin6; fmin6 ~ 0; fmin6 ~~ fmin6; pfmin6 ~~ 0*fmin6
+            pfmin7 =~ 1*fmin7; fmin7 ~ 0; fmin7 ~~ fmin7; pfmin7 ~~ 0*fmin7
+            pfmin8 =~ 1*fmin8; fmin8 ~ 0; fmin8 ~~ fmin8; pfmin8 ~~ 0*fmin8
+            pfmin9 =~ 1*fmin9; fmin9 ~ 0; fmin9 ~~ fmin9; pfmin9 ~~ 0*fmin9
+            pfmin10 =~ 1*fmin10; fmin10 ~ 0; fmin10 ~~ fmin10; pfmin10 ~~ 0*fmin10
+            pfmin11 =~ 1*fmin11; fmin11 ~ 0; fmin11 ~~ fmin11; pfmin11 ~~ 0*fmin11
+            
+            # Regressions Between Adjacent Observations
+            pfmin4 ~ 1*pfmin5  # temporal order reversed before intercept
+            pfmin5 ~ 1*pfmin6
+            pfmin6 ~ 1*pfmin7
+            pfmin8 ~ 1*pfmin7  # intercept time point appears twice
+            pfmin9 ~ 1*pfmin8
+            pfmin10 ~ 1*pfmin9
+            pfmin11 ~ 1*pfmin10
+            
+            # Define Change Latent Variables (delta)
+            # loadings prior to the intercept are negative
+            delta21 =~ -1*pfmin4;  delta21 ~~ 0*delta21 
+            delta32 =~ -1*pfmin5;  delta32 ~~ 0*delta32
+            delta43 =~ -1*pfmin6;  delta43 ~~ 0*delta43
+            
+            # loadings after the intercept are as usual
+            delta54 =~ 1*pfmin8;  delta54 ~~ 0*delta54
+            delta65 =~ 1*pfmin9;  delta65 ~~ 0*delta65
+            delta76 =~ 1*pfmin10;  delta76 ~~ 0*delta76
+            delta87 =~ 1*pfmin11;  delta87 ~~ 0*delta87
+            
+            # Define Proportional Change Regressions (beta = equality constraint)
+            # Non-recursive Proportional Paths
+            delta21 ~ beta*pfmin4
+            delta32 ~ beta*pfmin5
+            delta43 ~ beta*pfmin6
+            
+            # Standard Proportional Paths
+            delta54 ~ beta*pfmin7
+            delta65 ~ beta*pfmin8
+            delta76 ~ beta*pfmin9
+            delta87 ~ beta*pfmin10
+            
+            # Define Intercept and Slope
+            int  =~ 1*pfmin7
+            slp1 =~ 1*delta21 + 1*delta32 + 1*delta43
+            slp2 =~ 1*delta54 + 1*delta65 + 1*delta76 + 1*delta87
+        
+            int ~ 1; slp1 ~ 1; slp2 ~ 1
+            
+            slp1 ~~ slp1
+            slp2 ~~ slp2
+            int ~~ slp1 + slp2
+            slp1 ~~ slp2
+"
+two.rate.prop.lcsm.fit <- sem(two.rate.prop.lcsm,
+                              data = adversity, 
+                              estimator = "ML",
+                              missing = "FIML")
+
+summary(two.rate.prop.lcsm.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = TRUE, rsquare = FALSE)
+```
+
+## Nonlinear Trajectories
+
+However, we sometimes need to move beyond well-defined polynomial models in order to capture the complexity of developmental change over time and consider truly nonlinear trajectories. This is most common in applications with dense observations within-person or that cover wide (i.e., decades) age-ranges between-person, although we can model true nonlinearities in standard applications with 4-6 timepoints. GAMMs will shine in the former case, while LCMs and LCSMs offer some options for the latter.
+
+We can start with the GAMM syntax we are familiar with to specify a nonlinear trend across ages $8-28$ in the `feedback.learning` data.
+
+```{r nonlinear 01, message = FALSE, warning = FALSE, error = FALSE, results='asis'}
+gamm <- gamm4(scale(modularity) ~ 1 + s(age),
+              random = ~ (1 | id),
+              data = feedback.learning)
+
+gamtabs(gamm$gam, type = "html",
+        pnames = c("Intercept"), snames = c("s(Age)"),
+        caption = "Modularity as a Function of Age")
+
+plot.gam(gamm$gam, se = TRUE, rug = TRUE, shade = TRUE,
+         xlab = "Age", ylab = "Fitted Modularity Values")
+```
+
+Nothing as changed about this model from what we have seen previously because the GAMM intrinsically captures non-linearities through the use of the splines. In principle, given the functional form that is revealed, these data might also be fit with a quadratic polynomial (indeed in McCormick et al., 2021, *NeuroImage*: see main analyses versus supplemental GAMMs as a sensitivity check). Indeed these models might be a nice tool for this purpose to check the reasonableness of the functional form specified in more restrictive polynomial models, even if we retain the polynomials for interpretability. With expanding age ranges, this type of sensitivity check becomes increasingly important, since the non-linearities of the GAMM are a better theoretical match for the complex patterns of growth across the lifespan. While deceptively simple in their implementation (indeed this is the exact same model we keep fitting), GAMMS are a powerful and flexible tool for fitting developmental trajectories.
+
+The SEMs also allow for the inclusion of some nonlinear terms. Like the GAMM, we have already seen the most common nonlinearity through the proportional change parameter of the LCSM. We include the code and output for this model below but otherwise will not explore it further here.
+
+```{r nonlinear 02, message = FALSE, warning = FALSE, error = FALSE}
+executive.function <- read.csv("data/executive-function.csv", header = TRUE) %>%
+  select(id, dlpfc1:dlpfc4)
+
+proportional.lcsm <- "
+               # Define Phantom Variables (p = phantom)
+               pdlpfc1 =~ 1*dlpfc1; dlpfc1 ~ 0; dlpfc1 ~~ dlpfc1; pdlpfc1 ~~ 0*pdlpfc1
+               pdlpfc2 =~ 1*dlpfc2; dlpfc2 ~ 0; dlpfc2 ~~ dlpfc2; pdlpfc2 ~~ 0*pdlpfc2
+               pdlpfc3 =~ 1*dlpfc3; dlpfc3 ~ 0; dlpfc3 ~~ dlpfc3; pdlpfc3 ~~ 0*pdlpfc3
+               pdlpfc4 =~ 1*dlpfc4; dlpfc4 ~ 0; dlpfc4 ~~ dlpfc4; pdlpfc4 ~~ 0*pdlpfc4
+        
+               # Regressions Between Adjacent Observations
+               pdlpfc2 ~ 1*pdlpfc1
+               pdlpfc3 ~ 1*pdlpfc2
+               pdlpfc4 ~ 1*pdlpfc3
+        
+               # Define Change Latent Variables (delta)
+               delta21 =~ 1*pdlpfc2; delta21 ~~ 0*delta21
+               delta32 =~ 1*pdlpfc3; delta32 ~~ 0*delta32
+               delta43 =~ 1*pdlpfc4; delta43 ~~ 0*delta43
+               
+               # Define Proportional Change Regressions (beta = equality constraint)
+               delta21 ~ beta*pdlpfc1
+               delta32 ~ beta*pdlpfc2
+               delta43 ~ beta*pdlpfc3
+        
+               # Define Intercept and Slope
+               int =~ 1*pdlpfc1
+               slp =~ 1*delta21 + 1*delta32 + 1*delta43
+        
+               int ~ 1
+               slp ~ 1
+               
+               int ~~ slp
+               slp ~~ slp
+"
+
+lcsm.proportional <- sem(proportional.lcsm, 
+                         data = executive.function, 
+                         estimator = "ML",
+                         missing = "FIML")
+
+summary(lcsm.proportional)
+```
+
+However, the LCM offers an unique opportunity to model non-linear trends by throwing back to its roots in confirmatory factor analysis. Instead of specifying factor loadings, as we have done up to this point, we can allow a subset of them to be freely-estimated. This means that equal change is estimated between each timepoint, growth can accelerate and decelerate across different increments. However, to identify the growth model, we have to set at least two of the factor loadings to pre-specified values ($0$ and $1$) to set the scale for the other factor loadings. In general, there are two reasonable specifications. In the first, we set the first loading to $0$ and the second to $1$. This means that the other factor loadings are proportional to the amount of change that occurs between the first and second time point. We can see this specification below.
+
+```{r nonlinear 03, message = FALSE, warning = FALSE, error = FALSE}
+free.load1 <- "int   =~ 1*fmin4 + 1*fmin5 + 1*fmin6 + 1*fmin7 + 
+                        1*fmin8 + 1*fmin9 + 1*fmin10 + 1*fmin11
+               basis =~ 0*fmin4 + 1*fmin5 + l3*fmin6 + l4*fmin7 + 
+                        l5*fmin8 + l6*fmin9 + l7*fmin10 + l8*fmin11
+"
+
+free.load1.fit <- growth(free.load1,
+                         data = adversity,
+                         estimator = "ML",
+                         missing = "FIML")
+
+summary(free.load1.fit, fit.measures = FALSE, estimates = TRUE,
+        standardize = TRUE, rsquare = FALSE)
+```
+
+Here we label the freely-estimated factor loadings for convenient reference. We also specify the second factor as a basis (or sometimes "shape") rather than a "slope" factor to reflect the non-linearity inherent in this model. When we examine the model results, we can see a pretty striking pattern of factor loadings. The third loading (`l3`) is $10.43$, which suggests that more than $9$ times the amount of change occurs between the second and third timepoints as does between the first two (remember we take the difference between adjacent loadings). However, `l4` suggests that then there is a sharp deceleration in growth between the next timepoints. At `l6`, we can see that the factor loading actuall *decreases*, which is how this model fits a negative trend between adjacent timepoints. Finally, `l8` suggests a large increase at the final timepoint, reversing the earlier decreases. One thing to highlight is the increase in complexity just in describing the factor loadings and interpreting adjacent timepoints that do not follow some monotonic trend. Like many non-linear models, visualization of the model-implied trajectories is key for interpreting the effects. We can do so below.
+
+```{r nonlinear 04, message = FALSE, warning = FALSE, error = FALSE}
+ggplot(data.frame(id=free.load1.fit@Data@case.idx[[1]], 
+                           lavPredict(free.load1.fit,type="ov")) %>% 
+                  pivot_longer(cols = starts_with("fmin"), 
+                               names_to = c(".value", "age"), 
+                               names_pattern = "(fmin)(.+)") %>%
+                  dplyr::mutate(age = as.numeric(age)), 
+                aes(x = age, 
+                    y = fmin, 
+                    group = id, 
+                    color = factor(id))) +
+  geom_line() + 
+  labs(title = "Free-loading Model 1 Trajectories",
+       x = "Age",
+       y = "Predicted Forceps Minor Microstructure") +
+  theme(legend.position = "none") 
+```
+
+Here we can see the power, and danger, of these free-loading model. Like a GAMM, we can have complex, localized change, with reversals and highly variable slopes. However, in looking at the first couple of timepoints, we have to wonder if we are overfitting noise in the data when some simpler functional form would (e.g., a line) would describe this trend in a more replicable/generalizable way. Very often, these free-loading models will fit the data better than many alternatives we have discussed elsewhere in this primer, but then be very sample-depenedent in an unsatisfying fashion. Like with the GAMM, one potential use for this model is as a sensitivity check for a more-constrained LCM to ensure we are not completely botching the functional form. 
+
+We can refit this model using a different specification where we set the first loading to $0$ and the *last* loading to $1$. This scales the estimated loadings to be proportions of the total growth realized by that point. We can see this model below.
+
+```{r nonlinear 05, message = FALSE, warning = FALSE, error = FALSE}
+free.load2 <- "int   =~ 1*fmin4 + 1*fmin5 + 1*fmin6 + 1*fmin7 + 
+                        1*fmin8 + 1*fmin9 + 1*fmin10 + 1*fmin11
+               basis =~ 0*fmin4 + l2*fmin5 + l3*fmin6 + l4*fmin7 + 
+                        l5*fmin8 + l6*fmin9 + l7*fmin10 + 1*fmin11
+"
+
+free.load2.fit <- growth(free.load2,
+                         data = adversity,
+                         estimator = "ML",
+                         missing = "FIML")
+
+summary(free.load2.fit, fit.measures = FALSE, estimates = TRUE,
+        standardize = TRUE, rsquare = FALSE)
+```
+
+We can see that the loadings are now all less than $1$ but that they follow the same pattern as in the model (which they should, as they are identically-fitting models). However, now the loadings are expressed as percentages of the total change that occurs between the first and final timepoint. Note one odd thing is that when a trajectory follows a parabolic shape, we can get loadings about $1$ reflecting $>100%$ of the overall change has occurred by that time point. Nothing is wrong, per se, with that interpretation, but given the oddness of language it evokes, the first specification is by far the more common.
+
+## Fixed and Random Effects
+
+Before we move on, we want to highlight the distinction we make between fixed and random effects when we talk about the limitations of the functional form with respect to the number of repeated measures, per person. The oft-repeated mantra is that you need $3$ timepoints for a line, $4$ for a quadratic, and so on ad infinitum. *But*, on the other hand, we can fit a highly complex non-linear developmental trajectory to data where each individual contributes **at most** $2$ timepoints. How do we reconcile these two things? Well it has to do with whether we treat the effect in question as fixed or random. When we treat a parameter as fixed, we obtain a single value that describes all indiviudals in our sample (barring pesky things like interactions), but when we treat an effect as random, we also model individual differences in that "fixed" parameter (note that we estimate a single variance per random effect, not individual effects, but that's a longer discussion and we can calculate individual effects with some well-developed methods). So to estimate these individually-varying random effects, we need more repeated measures *within-person*. However, we can still estimate an overall fixed effect trajectory that takes advantage of greater timepoints *between* individuals than exist for any given individual. This is how we might estimate a GAMM with some highly complex surface, even though we could never estimate a random effect for any individual since they only contribute up to two observations.
+
+We can demonstrate this with our `feedback.learning` data where we can model both the effect of `wave`, which is a fully within-person measure, as well as linear and quadratic `age`. These latter two effects are specified as fixed effects because while `age` between-person ranges from $8 - 29$, no one person contributes more than $3$ time points, so the quadratic random effect would not be estimable. However, we can estimate a random effect of `wave`. We can see these effects below. This distinction highlights some of the advantages of having measurement timing heterogeneity for estimating more complex effect than one could do with single-cohort data with fully consistent assessment schedules.
+
+```{r fixedrandom 01, message = FALSE, warning = FALSE, error = FALSE}
+feedback.learning <- read.csv("data/feedback-learning.csv") %>% 
+  select(id, wave, age, modularity, learning.rate)
+
+fixrand <- lmer(scale(modularity) ~ 1 + wave + age + I(age^2) +
+                  (1 + wave | id),
+                na.action = na.omit,
+                REML = TRUE,
+                data = feedback.learning)
+
+summary(fixrand, correlation = FALSE)
+```
+
+
+```{r, cleanup shape, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
+rm(list = ls(all.names = FALSE))
+```

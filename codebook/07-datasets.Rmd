@@ -1,0 +1,52 @@
+# Datasets {#datasets}
+
+Use the button below to download all datasets used in this primer. Note that these datasets have been either **simulated or synthesized** and therefore **are not to be used to test substantive research hypotheses**.
+
+```{r download, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
+download_file(
+  path = c("data/executive-function.csv",
+           "data/feedback-learning.csv",
+           "data/single-cohort.csv",
+           "data/multiple-cohort.csv",
+           "data/multiple-cohort-long.csv",
+           "data/accelerated.csv",
+           "data/adversity.csv",
+           "data/external-math.csv",
+           "data/trials.csv",
+           "data/externalizing-outcome.csv",
+           "data/achieve.csv"),
+  output_name = "codebook-datasets",
+  button_label = "Download Codebook Datasets",
+  button_type = "default",
+  has_icon = TRUE,
+  icon = "fa fa-save",
+  self_contained = FALSE
+)
+```
+
+## Descriptions
+
+### Executive Function
+
+The `executive.function` dataset is a single-cohort longitudinal design, consisting of $342$ adolescents, ages $11.74 - 15.33$, assessed annually across $4$ waves. The repeated measures of interest are DLPFC activation during an executive function task (`dlpfc*`) and behavioral scores on that task (`ef*`). Additional variables include time-invariant covariates, self-identified sex (`sex`) and assigned treatment group (`tx`), as well as age at observation (`age*`). A subset of this dataset is used as the `single.cohort` data in Chapter 3.
+
+### Feedback Learning
+
+The `feedback.learning` dataset is an accelerated longitudinal design, consisting of $297$ young people, ages $8.01 - 28.72$, assessed annually across $3$ waves. The repeated measures of interest are brain network modularity (`modularity`) and behavioral performance (`learning.rate`) during a feedback learning task. Additional variables include the time-invariant covariate of self-identified sex (`male`) and time-varying covariates including, wave of assessment (`wave`), pubertal status (`puberty`), and IQ (`iq`). This dataset is used as the `accelerated` dataset in Chapter 3. These data were synthesized from data analyzed in [McCormick et al., 2021](https://mccormickneuro.github.io/publication/2021-longitudinal-reorganization/). the real data used in that manuscript is provided in the supplemental material. 
+
+### Externalizing and Math
+
+The `external.math` dataset is a multiple-cohort longitudinal design, consisting of $405$ adolescents, ages $6 - 14$, measured bi-annually across $4$ waves. The repeated measures of interest are measures of externalizing behavior (`ext*`) and math achievement (`math*`).
+
+### Adversity
+
+The `adversity` dataset is a multiple-cohort longitudinal design, consisting of $398$ children, ages $4 - 11$, measured bi-annually across $4$ waves. The repeated measure of interest is the white matter fractional anisotropy of the forceps minor tract (`fmin*`). Additional variables include a set of time-invariant covariates: self-identifed sex (`sex`), experiences of early-childhood abuse (`abuse`), experiences of early-childhood neglect (`neglect`), levels of early-childhood parental warmth (`warmth`), and four measures of cognitive stimulation (`cog*`). This dataset is used as the `multiple.cohort` dataset in Chapter 3.
+
+### Trials
+
+The `trials` dataset contains trial-level responses from the feedback learning task that was used in the `feedback.learning` dataset. The repeated measures include $7$ trials for $297$ individuals.
+
+### Achieve
+
+The `achieve` dataset is a single-cohort longitudinal design, consisting of $1237$ adolescents, ages $12 - 17$, sampled across $4$ waves from $41$ schools in $5$ geographic locations (`site`). The repeated measures of interest include math (`math`) and science (`sci`) achievement scores. The dataset includes an additional time-invariant covariate of self-identified sex (`male`).
+

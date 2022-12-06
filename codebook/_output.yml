@@ -1,0 +1,30 @@
+bookdown::gitbook:
+  css: style.css 
+  number_sections: false
+  split_by: rmd
+  config:
+    sharing:
+        facebook: no
+        twitter: yes
+        google: no
+        weibo: no
+        instapper: no
+        vk: no
+        all: ['twitter', 'facebook', 'linkedin', 'google', 'weibo', 'instapaper']
+    toc:
+      depth: 2
+      collapse: section
+      scroll_highlight: yes
+      before: |
+        <li><a href="./">The Hitchhiker’s Guide to Longitudinal Models</a></li>
+      after: |
+        <li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
+    edit: https://github.com/McCormickNeuro/longitudinal-primer/edit/main/%s
+    #download: ["pdf", "epub"]
+#bookdown::pdf_book:
+#  includes:
+#    in_header: preamble.tex
+#  latex_engine: xelatex
+#  citation_package: natbib
+#  keep_tex: yes
+#bookdown::epub_book: default

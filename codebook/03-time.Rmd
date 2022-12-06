@@ -1,0 +1,406 @@
+# Time Structure {#time}
+
+Now that we have covered the basic forms of each of the four modeling frameworks, we can start thinking more deeply about how to include time in our longitudinal models. We will begin by visualizing different kinds of assessment schedules and how our models might change depending on the structure of our observations. We will read in subsets of datasets that appear elsewhere in this primer codebook that follow each of three exemplar assessment types. The `single.cohort` and `accelerated` datasets were drawn from the `executive.function` and `feedback.learning` datasets we saw in the canonical models chapter. The `multiple.cohort` dataset has been drawn from the `adversity` dataset (for details, see the [Datasets](#datasets) chapter), which measures white matter development across 8 waves. These data contain fractional anisotropy (FA) measures derived from the forceps minor (`fmin`), a white matter tract that spans the hemispheres of the medial prefrontal cortex. We will see this dataset again when we consider predictors in the [Covariates](#covariates) chapter.
+
+```{r read data time, message = FALSE, warning = FALSE, error = FALSE}
+single.cohort <- read.csv("data/single-cohort.csv", header = TRUE)
+
+multiple.cohort <- read.csv("data/multiple-cohort.csv", header = TRUE)
+
+accelerated <- read.csv("data/accelerated.csv", header = TRUE)
+```
+
+## Assessment Schedules
+
+### Single Cohort Data
+
+As we cover in the main text, single cohort studies are by far the most common in longitudinal modeling. Below we can plot the assessment schedule for the canonical models we worked with in the last chapter. To declutter the plot, we have selected 50 individuals from the larger dataset and ordered them by their age at the first assessment.
+
+```{r single cohort 03, message = FALSE, warning = FALSE, error = FALSE}
+set.seed(12345)
+ggplot(single.cohort %>%
+         pivot_longer(cols=starts_with("age"),
+                      names_to = c(".value", "wave"), 
+                      names_pattern = "(.+)(.)"),
+       aes(x = age, y = id)) +
+  geom_line(aes(group = id), size = .5) +
+  geom_point(aes(color = as.factor(wave))) + 
+  labs(x = "Age", y = "Individual", color = "Wave") + 
+  theme(legend.position = "top")
+```
+
+We can see that there is some noise in the assessment schedule, as individuals are not observed at *exactly* intervals, however, we can see clear separation in ages between each wave. Because we cover this data extensively in the [Canonical Models](#canon) chapter, we will not show model fits here. However, we should note that because of the structure of this data, age and wave of assessment are highly collinear (and are more so the better job we do at observing individuals at regular intervals). This will impact our considerations about time later.
+
+### Multiple Cohort Data 
+
+A slightly more complex assessment schedule design is the multiple cohort design. In these designs, we have multiple, discrete ages at the first assessment which vary across cohorts. Here we can plot our `multiple.cohort` data, which is organized into three cohorts, beginning at ages $4$, $5$, and $6$. While at later ages the cohorts mix somewhat in terms of ages sampled, no individual is observed at consecutive ages. This highlights a key advantage of the multiple cohort design; they can often provide coverage of a wider developmental window without requiring additional subjects or waves of assessment using principles of planned missingness.
+
+```{r multiple cohort 01, message = FALSE, warning = FALSE, error = FALSE}
+ggplot(multiple.cohort %>% 
+         pivot_longer(cols=starts_with("fmin"),
+                      names_to = c(".value", "age"),
+                      names_pattern = "(....)(.+)") %>%
+         drop_na(fmin) %>% 
+         mutate(age = as.numeric(age)), 
+       aes(x = age, y = id)) +
+  geom_line(aes(group = id), size = .5) +
+  geom_point(aes(color = as.factor(age), shape = factor(cohort)), size=2) +
+  labs(x = "Age", y = "Individual", color = "Wave", shape = "Cohort") +
+  theme(legend.position = "top") + guides(color = "none")
+```
+
+Here we will demonstrate how one might model this type of data using the linear latent curve model for simplicity; however, we could implement this model in any of the 4 modeling frameworks we discussed. To preface the model results, the values of the `fmin` outcome were normalized to the first age assessed (`fmin4`) because of the relatively small natural scale of FA values. We have also read in the full `adversity` data file due to convergence issues with the subsample in `multiple.cohort`.
+
+```{r multiple cohort 02, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
+adversity <- read.csv("data/adversity.csv", header = TRUE)
+```
+
+```{r multiple cohort 03, message = FALSE, warning = FALSE, error = FALSE}
+mc.wm.model <- "int =~ 1*fmin4 + 1*fmin5 + 1*fmin6 + 1*fmin7 + 
+                       1*fmin8 + 1*fmin9 + 1*fmin10 + 1*fmin11
+                slp =~ 0*fmin4 + 1*fmin5 + 2*fmin6 + 3*fmin7 + 
+                       4*fmin8 + 5*fmin9 + 6*fmin10 + 7*fmin11
+"
+
+mc.wm <- growth(mc.wm.model,
+                data = adversity,
+                estimator = "ML",
+                missing = "FIML")
+```
+
+The real leverage that FIML gives us is apparent using this model. We can measure across $8$ ages despite no individual having more than $4$ observations. We can see the abbreviated results below.
+
+```{r multiple cohort 04, message = FALSE, warning = FALSE, error = FALSE}
+summary(mc.wm, fit.measures = FALSE, estimates = TRUE, 
+        standardize = TRUE, rsquare = FALSE)
+```
+
+With this model, we will be warned that coverage for certain pairwise combinations is $< 10\%$, which just reflects the fact that almost no individuals gave data at adjacent ages. We could inspect the model coverage using the `lavInspect()` function using the argument `what = "coverage"`. Note the values at or near $0$ on the 1-off diagonal (e.g., `fmin5` and `fmin4`).
+
+```{r multiple cohort 05, message = FALSE, warning = FALSE, error = FALSE}
+lavInspect(mc.wm, what = "coverage")
+```
+
+Finally, we can generate a path diagram, highlighting that the intercept and slope are estimated from all ages even though no individual is measured across all of those ages.
+
+```{r multiple cohort 06, message = FALSE, warning = FALSE, error = FALSE}
+semPaths(mc.wm, 
+         intercepts = TRUE,
+         edge.color = "black")
+```
+
+### Accelerated Design
+
+The most complex assessment schedule is the accelerated longitudinal design, where no two individual are assessed at the same maturational state (usually age). While it isn't strictly necessary that we have some smooth continuum of starting ages, accelerated longitudinal studies most often follow this approach. We can see an example below.
+
+```{r accelerated 01, message = FALSE, warning = FALSE, error = FALSE}
+set.seed(12345)
+
+ggplot(accelerated %>% group_by(id) %>% filter(length(unique(wave)) == 3) %>% 
+         ungroup() %>% filter(id %in% sample(id, 100)), 
+       aes(x = age, y = id)) +
+  geom_line(aes(group = id), size = .5) +
+  geom_point(aes(color = as.factor(wave))) + 
+  labs(x = "Age", y = "Individual", color = "Wave", shape = "Cohort") + 
+  theme(legend.position = "top")
+```
+
+Unlike the single or multiple-cohort data, where we have discrete timepoints of observations, here we have as many as three unique timepoints per person since individuals are unlikely to be the *exact* same age. While it is possible to fit this type of model using definition variables in an SEM (see the **Mplus** code for the TSCORE option), it is far more common to fit these assessment schedules with mixed effects models, where we can include precise age into the model as a continuous predictor. We can use the multilevel model to fit a quadratic growth curve to this data. Note that the linear and quadratic effects are fixed effects that are pooled across individuals, and that only the random intercept is included. We could include additional random effects if the data support them, although we would need sufficient numbers of observations within-person to do so.
+
+```{r accelerated 02, message = FALSE, warning = FALSE, error = FALSE}
+accel <- lmer(scale(modularity) ~ 1 + age + I(age^2) + (1 | id), 
+              na.action = na.omit,
+              REML = TRUE,
+              data = accelerated)
+```
+
+We can see the results of this model below.
+
+```{r accelerated 03, message = FALSE, warning = FALSE, error = FALSE}
+summary(accel)
+```
+
+If we want to get the overall fixed effects trend, rather than individual trajectories (as we did in the [Canonical](#canon) models), we can use the `ggpredict()` function from the [**ggeffects**]() package to generate predicted values of the outcome at specific values of the predictor. This package is especially useful for generating **ggplot**-compatible dataframes when plotting interactions, but we can still use it for main effects (although a polynomial is a special form of an interaction). We can specify the levels of the predictor within the brackets (`[]`) or set them to `all` as we will here to get the full range of ages in our plot. We can then pass this dataframe to **ggplot** and plot the effect of age with confidence bands shaded.
+
+```{r accelerated 04, message = FALSE, warning = FALSE, error = FALSE}
+accel.effects = ggeffects::ggpredict(accel, terms='age [all]')
+
+ggplot(data=accel.effects, aes(x=x,y=predicted)) + 
+  geom_line() + 
+  geom_ribbon(aes(ymin=conf.low, ymax=conf.high), alpha=.2) + 
+  labs(x='Age', y = 'Predicted Learning Rate')
+```
+
+We can see quite a pronounced inverted-U quadratic effect here, with a peak around twenty. While we have this plot here, we might wish to know if the simple linear slope is significant at various points along the curve (i.e., is modularity significantly increasing or decreasing at a given age). To do so, we can use the `simple_slopes()` function from the [**interactions**]() package. One quirk is that this function does not recognize a polynomial term like the one we have here. Instead, the function looks for separate variable labels. Well fortunately we can just trick it into working as we would like by duplicating the age variable under a new name (`age_temp`). We can then re-estimate our model with the interaction of age and our temporary age variable included (i.e., `age:age_temp`). 
+
+```{r accelerated 05, message = FALSE, warning = FALSE, error = FALSE}
+accelerated <- accelerated %>% mutate(age_temp = age)
+
+probe.accel <- lmer(scale(modularity) ~ 1 + age + age:age_temp + (1 | id), 
+                    na.action = na.omit,
+                    REML = TRUE,
+                    data = accelerated)
+```
+
+We can then pass the new model object to the `simple_slopes()` function with `age` as our focal predictor and `age_temp` as the moderator (of course in this case, it doesn't matter which variable we put in which position). We can toggle the `jnplot` argument to `TRUE` in order to generate a plot of the linear effect of age as a function of age. This plot will show us where within the quadratic curve, we have significant increases or decreases, and where the linear effect is not significant.
+
+```{r accelerated 06, message = FALSE, warning = FALSE, error = FALSE}
+interactions::sim_slopes(probe.accel, 
+                         data = accelerated,
+                         pred = age, 
+                         modx = age_temp, 
+                         jnplot = TRUE,
+                         jnalpha = 0.05)
+```
+
+We can see that from around 19 to 27, the linear effect of age (i.e., the slope of the tangent line) is not significant but is significantly positive before and significantly negative after this age range. We round these numbers because we cannot really think we have such precise measurements to say that linear increases in modularity become non-significant *exactly* at 18.79. However, this sort of plot can help us distinguish between truly quadratic effects (within increases *and* decreases) versus a plateauing of the outcome at later ages.
+
+```{r accelerated 07, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
+accelerated <- accelerated %>% select(-age_temp)
+```
+
+## Time Coding
+
+One point of frequent confusion when modeling data (nevermind longitudinal models) is the role of centering the predictors for model results/fit/etc. In general, centering predictors does not change the fundamental information contained within the model, although sometimes it is necessary for practical reason (e.g., reducing collinearity between main effects and product terms). In longitudinal models, the main centering concern is where to place the intercept (i.e., where time is coded 0). While many of our parameter estimates will indeed change based on where we choose to estimate the intercept (most notably the...wait for it...intercept, as well as covariances with the intercept).  Here we will demonstrate with the LCM framework since the factor-loading matrix makes what is happening very explicit, but you could replicate these results with any of the other approaches.
+
+First, we can fit the linear model to the single-cohort data we showed above. Here we will place the $0$ factor loading at the first time point which will result in the intercept reflecting individual differences in the level of the outcome at the initial assessment (i.e., initial status).
+
+```{r time coding 01, message = FALSE, warning = FALSE, error = FALSE}
+initial.status <- "int =~ 1*dlpfc1 + 1*dlpfc2 + 1*dlpfc3 + 1*dlpfc4
+                   slp =~ 0*dlpfc1 + 1*dlpfc2 + 2*dlpfc3 + 3*dlpfc4"
+
+initial.status.fit <- growth(initial.status, 
+                             data = single.cohort,
+                             estimator = "ML",
+                             missing="FIML")
+
+summary(initial.status.fit, fit.measures = TRUE, estimates = FALSE, 
+        standardize = FALSE, rsquare = FALSE)
+```
+
+We will focus first on fit and then circle back to parameter estimates later. Here the chi-square test statistics is $12.14$ on $5%$ degrees of freedom ($p = 0.033$), the $CFI = 0.893$ and the $RMSEA = 0.169$. We can then re-estimate the model where we code the *last* factor loading as $0$ instead so the intercept will represent final status.
+
+```{r time coding 02, message = FALSE, warning = FALSE, error = FALSE}
+final.status <- "int =~ 1*dlpfc1 + 1*dlpfc2 + 1*dlpfc3 + 1*dlpfc4
+                 slp =~ -3*dlpfc1 + -2*dlpfc2 + -1*dlpfc3 + 0*dlpfc4"
+
+final.status.fit <- growth(final.status, 
+                           data = single.cohort,
+                           estimator = "ML",
+                           missing = "FIML")
+
+summary(final.status.fit, fit.measures = TRUE, estimates = FALSE, 
+        standardize = FALSE, rsquare = FALSE)
+```
+
+Looking at the model fit values, they are *exactly* identical to the initial status model. We have effectively re-arranged deck chairs on the Titanic (and Rose is about to shove Jack off that door; don't \@ me) as far as model fit goes. So why might we wish to reformulate this model? Well, individual differences in level might be interesting to interpret substantively at one point over another depending on our application of interest. While many research hypotheses will lend themselves naturally to the initial status approach, in intervention work or a training study we might be far more interesting in interpreting where individuals end up (spoken with all the authority of someone who does *not* do intervention work).
+
+```{r time coding 03, message = FALSE, warning = FALSE, error = FALSE, echo=FALSE}
+tidy(initial.status.fit) %>% 
+  filter(op != "=~", !is.na(statistic)) %>%
+  select(-op, -std.nox) %>%
+  knitr::kable(label = NA,
+               format = "html",
+               digits = 3,
+               booktabs = TRUE,
+               escape = FALSE,
+               caption = "**Initial Status LCM**",
+               align = "c",
+               col.names=c("Parameter", "Estimate", "SE", "Statistic",
+                           "*p*-value", "Std.LV", "Std.All"),
+               row.names = FALSE) %>% 
+  kableExtra::row_spec(row = 0, align = "c")
+```
+
+
+```{r time coding 04, message = FALSE, warning = FALSE, error = FALSE, echo=FALSE}
+tidy(final.status.fit) %>% 
+  filter(op != "=~", !is.na(statistic)) %>%
+  select(-op, -std.nox) %>%
+  knitr::kable(label = NA,
+               format = "html",
+               digits = 3,
+               booktabs = TRUE,
+               escape = FALSE,
+               caption = "**Final Status LCM**",
+               align = "c",
+               col.names=c("Parameter", "Estimate", "SE", "Statistic",
+                           "*p*-value", "Std.LV", "Std.All"),
+               row.names = FALSE) %>% 
+  kableExtra::row_spec(row = 0, align = "c")
+```
+
+We can see that some parameters won't change based on the time-coding. For instance, the residual variances of the repeated measures (and therefore the R-squares), and the mean and variance of the slope factor. However, the mean and variance of the intercept changes, as does the correlation between the slope and intercept (initial status: $r = -0.243$; final status: $r = 0.552$). Note that the sign of the correlation flips and the magnitude of the difference is quite substantial. This should urge caution not to interpret the intercept outside of the specific timepoint it is estimated for since it's parameter values will be context specific (due to rank-order shifts due to random slopes).
+
+If we wanted to use a mixed effect model, we might be better off just transforming our predictor variable to reflect the code we want. We can transform the `single.cohort` data below to suit our purposes.
+
+```{r time coding 05, message = FALSE, warning = FALSE, error = FALSE}
+single.cohort.long <- single.cohort %>%
+  pivot_longer(cols=starts_with(c("age", "dlpfc")),
+               names_to = c(".value", "wave"), 
+               names_pattern = "(.+)(.)") %>%
+  mutate(wave = as.numeric(wave),
+         age_initial = age - min(age, na.rm = TRUE),
+         age_final = age - max(age, na.rm = TRUE))
+```
+
+We can then fit the models as we usually do to see the equivalencies.
+
+```{r time coding 06, message = FALSE, warning = FALSE, error = FALSE}
+initial.status.mlm <- lmer(dlpfc ~ 1 + age_initial + (1 + age_initial | id),
+                           na.action = na.omit,
+                           REML = TRUE,
+                           data = single.cohort.long)
+
+final.status.mlm <- lmer(dlpfc ~ 1 + age_final + (1 + age_final | id),
+                         na.action = na.omit,
+                         REML = TRUE,
+                         data = single.cohort.long)
+```
+
+
+```{r time coding 07, message = FALSE, warning = FALSE, error = FALSE}
+tab_model(initial.status.mlm, final.status.mlm,
+          show.se = TRUE,
+          show.df = FALSE,
+          show.ci = FALSE,
+          digits = 3,
+          pred.labels = c("Intercept", "Age - min(Age)", "Age - max(Age)"),
+          dv.labels = c("Initial Status", "Final Status"),
+          string.se = "SE",
+          string.p = "P-Value")
+```
+
+Note that the slope estimates are identical, while estimates involving the intercept change as we saw before.
+
+## Additional Considerations
+
+One thing that has been consistent across all the models that we have fit thus far is that they are structured primarily by the chronological age of the individuals in question. Even when we have used wave of assessment as the nominal variable encoding time, waves have been spaced into yearly assessments and the lack of heterogeneity in ages collapses age and wave (either in reality or in practice when we fix factor loadings). However, nothing stops us from structuring the repeated measures by some other metric of maturation, practice, or anything else (except for pesky things like convention and serious measurement/modeling challenges, but that's all). For instance, we could plot our repeated measures in the `accelerated` data again, but instead of chronological age, we could put pubertal status (measured by Tanner stage) on the x-axis. That would result in the plot below.
+
+### Alternative Metrics of Time
+```{r alternative metric 01, message = FALSE, warning = FALSE, error = FALSE}
+ggplot(accelerated, aes(x = puberty, y = id)) +
+  geom_line(aes(group = id), size = .5) +
+  geom_point(aes(color = as.factor(wave))) + 
+  labs(x = "Tanner Stage", y = "Individual", color = "Wave", shape = "Cohort") + 
+  theme(legend.position = "top")
+```
+
+In some ways, this roughly resembles the age plot, with some individuals being measured at earlier stages of puberty and other later. However, close inspection starts to uncover some issues. First, we often stop measuring puberty once individual reach a certain age/stage of development, so puberty as a measure of maturation is limited in it's utility outside of a fairly specific phase of development. We can already see for subjects who are measured first at later ages having missing data for later observations because puberty measures were not taken. There is also the curious case that some subset of individuals seem to move backwards in pubertal development (this should be treated as an error, but it's amusing nonetheless). However, the key feature of interest in a plot like this is that, unlike age, there is not reason to expect that all individuals "age" at the same rate across puberty, seen by the uneven spacing between waves within individuals. This variation is just one of the exciting opportunities that modeling maturation using metric other than age present (although they do come with their own challenges; there is an admittedly understandable reason that age is the predominate variable in longitudinal models). One other advantage is within-age heterogeneity, which we can see by plotting Tanner Stage by age in the plot below.
+
+```{r alternative metric 02, message = FALSE, warning = FALSE, error = FALSE}
+ggplot(accelerated, aes(x = age, y = puberty)) +
+  geom_line(aes(group = id), size = .5) +
+  geom_point(aes(color = as.factor(wave))) + 
+  labs(x = "Age", y = "Tanner Stage", color = "Wave", shape = "Cohort") + 
+  theme(legend.position = "top")
+```
+
+We can see that same-age peers may differ considerable (depending on when we measure them) in their pubertal development. We can also fit puberty-related trajectories to the modularity data below.
+
+```{r alternative metric 03, message = FALSE, warning = FALSE, error = FALSE}
+accel <- lmer(scale(modularity) ~ 1 + puberty + (1 | id), 
+              na.action = na.omit,
+              REML = TRUE,
+              data = accelerated)
+
+summary(accel, correlation = FALSE)
+```
+
+Of course, we might wish to model age and puberty simultaneously. That may present practical challenges in this data, since age and puberty are highly correlated $r = 0.796$, but some strategies for modeling multiple growth processes have been suggested elsewhere (see the relevant portion of the main text for details).
+
+### Residual Estimates
+
+The final consideration we will explore in our discussion of time is the structure of the residuals of our repeated measures. This is often not of great theoretical importance (I don't really believe you if you tell me your theory is specific enough to know if residual variance should be constant or not...call me a grinch), but it can be really important for model results. Essentially, an overly restrictive assumption about residual variances at the individual observation level can radiate out into the random effects structure and bias your effects. Here we will show how to specify both forms of a model in a mixed effect and structural equation model, and test which one is a better fit to the data.
+
+We can start with the LCM, where heteroscedasticity (i.e., unique residual estimates across) is the default. To obtain this model, we use the same syntax we have seen repeatedly so far.
+
+```{r residuals 01, message = FALSE, warning = FALSE, error = FALSE}
+lcm.het <- "int =~ 1*dlpfc1 + 1*dlpfc2 + 1*dlpfc3 + 1*dlpfc4
+            slp =~ 0*dlpfc1 + 1*dlpfc2 + 2*dlpfc3 + 3*dlpfc4"
+
+lcm.het.fit <- growth(lcm.het, 
+                      data = single.cohort,
+                      estimator = "ML",
+                      missing = "FIML")
+
+summary(lcm.het.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = FALSE, rsquare = FALSE)
+```
+
+We can easily see that each residual obtains a unique value with an associated inference test (`.dlpfc1 - .dlpfc4`). To constrain these residuals equal across time, we have to explicitly write out the residual term (we have been relying on sensible defaults thus far) and then pre-multiply each estimate by the same alpha-numeric label. **Lavaan** will interpret repeated labels as a request for an equality constraint on those parameters. We can see this constraint in action below.
+
+```{r residuals 02, message = FALSE, warning = FALSE, error = FALSE}
+lcm.hom <- "int =~ 1*dlpfc1 + 1*dlpfc2 + 1*dlpfc3 + 1*dlpfc4
+            slp =~ 0*dlpfc1 + 1*dlpfc2 + 2*dlpfc3 + 3*dlpfc4
+
+            dlpfc1 ~~ c1*dlpfc1
+            dlpfc2 ~~ c1*dlpfc2
+            dlpfc3 ~~ c1*dlpfc3
+            dlpfc4 ~~ c1*dlpfc4"
+```
+
+The choice of constraint (here `c1`) is somewhat arbitrary, but the point is that it can contain characters and numbers (although it must begin with a character). When we fit the model, we will see those parameters will be held equal.
+
+```{r residuals 03, message = FALSE, warning = FALSE, error = FALSE}
+lcm.hom.fit <- growth(lcm.hom, 
+                      data = single.cohort,
+                      estimator = "ML",
+                      missing = "FIML")
+
+summary(lcm.hom.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = FALSE, rsquare = FALSE)
+```
+
+**Lavaan** conveniently includes the labels in the output and we can see that now all of the residuals obtain the *exact* same value, and *exact* same inferential test (note how that changes the inference on the residual of `dlpfc1` from above). However, note how other parameter estimates (namely the factor means and variances) change as well. These changes are small (for reasons we will see) but it is important to note we are making real changes to the model with the introduction of this constraint. We can then get a likelihood-ratio test of difference in fit, using the `lavTestLRT()` function, because the simplified homoscedastic model is nested within the more complex heteroscedastic model. Note that we list the homoscedastic model first.
+
+```{r residuals 04, message = FALSE, warning = FALSE, error = FALSE}
+lavaan::lavTestLRT(lcm.hom.fit, lcm.het.fit)
+```
+
+However, in the output, the heteroscedastic model is listed first. This is because the more complex model is always the reference and we are testing whether the imposition of model simplifications (i.e., constraints; here homoscedastic residuals) significantly decreases model fit. Here we can see that the chi-square difference test is not significant ($p = 0.460$), so we could retain the simplification without decreasing the fit of the model to our data. This is the reason that our parameters did not change much. In models where we would reject homoscedasticity, the imposition of the constraint would lead to more pronounced parameter changes elsewhere in the model. While there is not an associated inference test for the AIC/BIC, we could also use those values for model comparisons if we wished. 
+
+To implement heteroscedastic residuals in mixed-effects models, we have to leave our familiar `lmer()` and travel back in time to the days of `lme()`. We can first fit the canonical model we know and love, where the default is homoscedasticity.
+
+```{r residuals 05, message = FALSE, warning = FALSE, error = FALSE}
+mlm.hom <- nlme::lme(dlpfc ~ 1 + wave,
+                     random = ~ 1 + wave | id,
+                     na.action = na.omit,
+                     method = "REML",
+                     data = single.cohort.long)
+
+summary(mlm.hom, correlation = FALSE)
+```
+
+Note that in the `Random effects` portion of the output, we obtain a single numerical value for the residual $\sigma^2 = 0.660$. To fit a heteroscedastic model, we need to make use of a new argument, `weights`. We can specify the `form` argument of the `varIdent()` ("variance identity) function to obtain a unique estimate per `wave`. 
+
+```{r residuals 06, message = FALSE, warning = FALSE, error = FALSE}
+mlm.het <- nlme::lme(dlpfc ~ 1 + wave,
+                     random = ~ 1 + wave | id,
+                     weights = varIdent(form = ~ 1 | wave),
+                     na.action = na.omit,
+                     method = "REML",
+                     data = single.cohort.long)
+
+summary(mlm.het, correlation = FALSE)
+```
+
+Looking at the `Random effects` output, we still only see a single value for the residual. Unfortunately the output structure here leaves something to be desired. We need to look to the `Variance function` output section where we see for unique values. Well these are not technically the residual estimates, but rather they indicate the relative size of the residual scaled to the first estimate (the one we see in the `Random effects` section). To extract the actual estimates, we can use the following code.
+
+```{r residuals 07, message = FALSE, warning = FALSE, error = FALSE}
+mlm.het$sigma * exp(as.numeric(mlm.het$modelStruct$varStruct))
+```
+
+So the first residual can be extracted as `model$sigma`, but the residual weights from the model are stuck in the `varStruct` portion of the fitted `lme()` object and are in the $log(\sigma)$ scale. So we have to extract the values, convert them to numeric format, exponentiate them, and then multiple the weights by the estimated residual to obtain the other three estimates (tired yet?).
+
+Fortunately, model comparisons are straightforward with the `anova()` function, which we can use in the same way we used `lavTestLRT()` to compare LCMs early.
+
+```{r residuals 08, message = FALSE, warning = FALSE, error = FALSE}
+anova(mlm.het, mlm.hom)
+```
+
+Like before, these results indicate that imposing homoscedasticity does not significantly decrease model fit.
+
+```{r, cleanup time, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
+rm(list = ls(all.names = FALSE))
+```

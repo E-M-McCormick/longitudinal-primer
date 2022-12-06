@@ -1,0 +1,255 @@
+# Nested Data {#nesting}
+
+The final topic we will consider is the way we account for nesting within longitudinal data. While technically all of longitudinal modeling involves nested data (i.e., multiple observations nested within the same individual), here we focus more on between-person nesting groups (e.g., classroom, family, data collection sites). As we will see, there are several forms of the models that we have already used that deal with nesting. The `achieve` dataset we will work with here are from a 4-wave school-based assessment of math and science achievement across ages $12$ - $17$. Schools were drawn from $5$ different metropolitan areas and assessments were conducted by separate research teams in each city. Here we will mostly focus on the science achievement data, but may draw examples from math achievement if they differ in interesting ways.
+
+```{r read data nesting, message = FALSE, warning = FALSE, error = FALSE}
+achieve <- read.csv("data/achieve.csv", header = TRUE)
+
+achieve.wide <- achieve %>%
+  pivot_wider(id_cols = c("site", "school", "id", "male"), 
+              names_from = "wave",
+              values_from = c("sci", "math"),
+              names_sep = ".",
+              values_fill = NA)
+```
+
+As always, we can fit an unconditional growth model to give us a baseline of expectations for the effects we will in subsequent models. Here we will fit the MLM and LCM versions as they are the simplest representations.
+
+## Unconditional Model
+```{r unc01, message = FALSE, warning = FALSE, error = FALSE}
+unc.mlm <- lmer(sci ~ 1 + wave + (1 + wave | id),
+                na.action = na.omit,
+                REML = TRUE,
+                data = achieve)
+
+summary(unc.mlm, correlation = FALSE)
+```
+
+```{r ucn02, message = FALSE, warning = FALSE, error = FALSE}
+unc.lcm <- "int =~ 1*sci.1 + 1*sci.2 + 1*sci.3 + 1*sci.4
+            slp =~ 0*sci.1 + 1*sci.2 + 2*sci.3 + 3*sci.4"
+
+unc.lcm.fit <- growth(unc.lcm,
+                      data = achieve.wide,
+                      estimator = "ML",
+                      missing = "FIML")
+
+summary(unc.lcm.fit, fit.measures = TRUE, estimates = TRUE, 
+        standardize = TRUE, rsquare = TRUE)
+```
+
+As a general takeaway, we have an average science achievement of around $60$ (these scores are arbitrarily scaled so that isn't incredibly informative) but more of interest, science achievement is increasing over time approximately $2$ points per year of school.
+
+## Categorical Predictors
+Nesting induces correlations between observations because members of the same group are more similar to one another than members of other groups. The practical upshot of these models is that we obtain different values of parameters across group (although the methods for this will vary). Perhaps the simplest method for doing so, and therefore accounting for group differences, is to predict the mean of the outcome variable using a categorical predictor. In longitudinal modeling, this most often occurs at the level of the individual as a TIC. As such, we already know how to fit this kind of model from the last chapter. We can show this syntax again below. Here we predict the intercept and slope random effects with `male` to examine differences between self-reported males and females. In the MLM syntax, we simply include `male` in the regression equation if we want to predict mean differences in science achievement.
+
+```{r cat01, message = FALSE, warning = FALSE, error = FALSE}
+cat.mlm.1 <- lmer(sci ~ 1 + wave + male + (1 + wave | id),
+                na.action = na.omit,
+                REML = TRUE,
+                data = achieve)
+
+summary(cat.mlm.1, correlation = FALSE)
+```
+
+Here we see that males show $1.6$ units higher science achievement compared with females (the reference category). It is possible to predict other parameters in the model, although the options in mixed-effects models tend to be more limited compared with SEM approaches. For instance, if we thought error variance might differ across groups, we could include this in our MLM syntax through the variance identity (`varIdent`) function. The `form` equation, `~ 1 | male`, mimics the regression equation where we have a separate "intercept" (here just read this as estimate) nested within group (`male`). We can then go through the procedure we covered in Chapter 3 to recover the different estimates for males and females (here in standard deviations, but we can easily square these values to obtain variances).
+
+```{r cat02, message = FALSE, warning = FALSE, error = FALSE}
+cat.mlm.2 <- lme(sci ~ 1 + wave + male,
+                 random = ~ 1 + wave | id,
+                 weights = varIdent(form = ~ 1 | male),
+                 na.action = na.omit,
+                 method = "REML",
+                 data = achieve)
+
+summary(cat.mlm.2)
+
+c(cat.mlm.2$sigma, cat.mlm.2$sigma * exp(as.numeric(cat.mlm.2$modelStruct$varStruct)))
+```
+
+These results show that males appear to have increased variability in their science achievement compared to females in addition to a higher average. Note that we are not getting a direct effect estimate here, but rather estimating values separately for each group. There are not clear ways of implementing that kind of effect in **lme4**, so we will not go too much further except to mention that within the mixed-effect world of models, you can directly model predictors of variability with location-scale models, although those generally require more intensive longitudinal kinds of data. As such, we will not consider this further.
+
+Because these categorical variables enter the model at the person level, in the mixed-effects models they predict the random effects rather than the individual time-specific observations. However, in the SEM, we can additionally predict one (or more) of the individual repeated measures. We can see this approach in a version of a MIMIC model, where we predict both the latent factors and the first repeated measure (`sci.1`).
+
+```{r cat03, message = FALSE, warning = FALSE, error = FALSE}
+cat.lcm <- "int =~ 1*sci.1 + 1*sci.2 + 1*sci.3 + 1*sci.4
+            slp =~ 0*sci.1 + 1*sci.2 + 2*sci.3 + 3*sci.4
+
+            int ~ male
+            slp ~ male
+            
+            sci.1 ~ male"
+
+cat.lcm.fit <- growth(cat.lcm,
+                      data = achieve.wide,
+                      estimator = "ML",
+                      missing = "FIML")
+
+summary(cat.lcm.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = TRUE, rsquare = FALSE)
+```
+
+These approaches are relatively simple ways to incorporate nesting information into the model, but highlight the continuity with more complex approaches we will discuss as we move forward in this chapter.
+
+## Multiple Groups Models
+
+While the categorical predictor allows us to vary some parameters across groups, a unique power of the SEM is the multiple group model, where we can estimate unique parameters of essentially any type across any number of groups (although the number of groups tends to be small in practice). The reason for a small number of groups tends to be due to sample size requirements within-group. SEM is still a large-sample estimator in the multiple groups model, so we have to be careful we aren't under-powering the model at the group level, even if the overall sample size is large. Below we can see how the multiple-group LCM is specified. Nothing changes about the syntax object `mult.g1` from what we have seen before, however, now we include the argument `group = "male"` to indicate that we want to obtain unique estimates for females and males. Typically, these models require setting some small set of parameters equal in the model just to identify the model, so here we conveniently achieve this through having the same set factor loadings for the growth model. We can see the results below.
+
+```{r multg01, message = FALSE, warning = FALSE, error = FALSE}
+mult.g1 <- "int =~ 1*sci.1 + 1*sci.2 + 1*sci.3 + 1*sci.4
+            slp =~ 0*sci.1 + 1*sci.2 + 2*sci.3 + 3*sci.4"
+
+mult.g1.fit <- growth(mult.g1,
+                      data = achieve.wide,
+                      group = "male",
+                      estimator = "ML",
+                      missing = "FIML")
+
+summary(mult.g1.fit, fit.measures = TRUE, estimates = TRUE, 
+        standardize = TRUE, rsquare = FALSE)
+```
+
+We can see that we now have separate test statistics and sample sizes that reflect the fact that we are - to a large extent - estimating separate models. We also can see that our parameter estimates are broken up into `Group 1 [1]` and `Group 2 [0]`. The value in brackets represents the value of the grouping variable `male`, so here Group 1 is males and Group 2 is female (you could change this variable into a labeled factor and then those labels would be more informative). It's important to note the ordering of the groups for future steps.
+
+Here we can qualitatively say that among other things, males seem to start higher ($61.6$ vs. $60.1$) and increase more rapidly ($2.22$ vs. $1.90$) in their achievement, and have a higher correlation between starting point and rate of change ($r = 0.226$ vs. $r = .105$), compared with females. However, a natural question is whether these differences are significant. We can explicitly test differences across groups by introducing group-specific labels into our model syntax and building composite parameters where we get a formal inferential test on the difference. A really nice feature of maximum likelihood parameters is that linear operations on the parameter are themselves maximum likelihood parameters themselves. To achieve this, we simply pre-multiply a given parameter by a vector of labels (e.g., `c(Mi, Fi)`) and then define the composite parameter using the `:=` operator. Here we will test the difference between the intercept (`c(Mi, Fi)`) and slope factor means (`c(Ms, Fs)`), and the covariance between factors (`c(Mc, Fc)`). This is where keeping track of the group order becomes important so we don't mis-label our parameters of interest and reverse our inference. The `D*` composite parameters are then created by simply subtracting `F*` from the `M*` parameters.
+
+```{r multg02, message = FALSE, warning = FALSE, error = FALSE}
+mult.g2 <- "int =~ 1*sci.1 + 1*sci.2 + 1*sci.3 + 1*sci.4
+            slp =~ 0*sci.1 + 1*sci.2 + 2*sci.3 + 3*sci.4
+            
+            int ~ c(Mi, Fi)*1
+            slp ~ c(Ms, Fs)*1
+            
+            int ~~ c(Mc, Fc)*slp
+            
+            Di := Mi - Fi
+            Ds := Ms - Fs
+            Dc := Mc - Fc"
+
+mult.g2.fit <- growth(mult.g2,
+                      data = achieve.wide,
+                      group = "male",
+                      estimator = "ML",
+                      missing = "FIML")
+
+summary(mult.g2.fit, fit.measures = FALSE, estimates = TRUE, 
+        standardize = TRUE, rsquare = FALSE)
+```
+
+We will only focus here on the `Defined Parameters` section, where we can see that while males have higher absolute estimates on all of these parameters we have tested, only the mean of the intercept factor significantly differs across groups. These are only a subset we chose for demonstration purposes, and we could explore others if we chose.
+
+However, this model allows maximally different estimates, which belies one of the real strengths of the multiple-groups model, which is to selectively set a subset of parameters equal across groups. This allows us to bridge the gap between fitting the model in each group uniquely and fitting a single-group model where we ignore nesting altogether. The parameters we set equal benefit from increased power because it is not diluted by the smaller sub-samples and reduce the number of parameters we need to interpret. One common approach is to start with the type of model we first fit, with all parameters unequal, and then progressively build in equality constraints and test whether they reduce the fit of the model. We can do this in two ways, either through the syntax (changing labels like `c(Mi, Fi)` to be the same like `c(i, i)`) or through the argument `group.equal` in the model fitting function. The first approach gives us more control, but can be tedious in large models, while the latter is less precise but quick. For instance, if we want to constrain the factor means equal across groups, we can simply include `means` in the `group.equal` argument. We can see the results below.
+
+```{r multg03, message = FALSE, warning = FALSE, error = FALSE}
+mult.g3 <- "int =~ 1*sci.1 + 1*sci.2 + 1*sci.3 + 1*sci.4
+           slp =~ 0*sci.1 + 1*sci.2 + 2*sci.3 + 3*sci.4"
+
+mult.g3.fit <- growth(mult.g3,
+                      data = achieve.wide,
+                      group = "male",
+                      group.equal = c("means"),
+                      estimator = "ML",
+                      missing = "FIML")
+
+summary(mult.g3.fit, fit.measures = TRUE, estimates = TRUE, 
+        standardize = TRUE, rsquare = FALSE)
+```
+
+Now note that the factor means (labels `.20.` and `.21.`) are equal across males and females. We could mix and match syntax and argument constraints if we like; like many things in SEM, we can have full control as long as we keep things organized. We can test whether this more constrained model fits significantly worse than the maximally-different model using a likelihood ratio test.
+
+```{r multg04, message = FALSE, warning = FALSE, error = FALSE}
+lavTestLRT(mult.g1.fit, mult.g3.fit)
+```
+Here it appears that constraining the factor means does significantly decrease model fit, so we wouldn't conclude that this constraint is appropriate. We could do this kind of testing with other parameters if we chose, although we won't here for space and simplicity. The complexity and utility of the multiple groups models is not something we can explore fully here, and interested readers can find a much larger literature on these kinds of models if they wish to implement them in their own research (see the manuscript for a general starting point).
+
+## Fixed Effect Approach
+The fixed effect approach is (rarely for quantitative methods) exactly what it sounds like in the context of mixed-effect models, we simply include our grouping variable as a fixed effect in the model. This has the convenience of account for unmeasured or otherwise unmodeled differences between groups that might bias the effects. In the most common use of the fixed-effects approach, we account for intercept differences by including a main effect of the group. In the context of our data example, we will model the effect of `site` on science achievement using a fixed approach. Within the `lmer()` syntax, we can use the short-cute of `factor(site)` to generate a series of dummy-codes, where `site == 1` is the reference category. We can see the results of this below.
+
+```{r fix01, message = FALSE, warning = FALSE, error = FALSE}
+fixed.mlm1 <- lmer(sci ~ 1 + wave + factor(site) + (1 + wave | id),
+                na.action = na.omit,
+                REML = TRUE,
+                data = achieve)
+summary(fixed.mlm1, correlation = FALSE)
+```
+
+Note that the `(Intercept)` term is the intercept for Site 1 and each of the effects `factor(site)*` indicate the relative difference from that term for the other sites. If we wished to use an absolute coding scheme, we change the `1` to a `0` (indicating that we don't wish to estimate a reference intercept) and re-estimate the model.
+
+```{r fix02, message = FALSE, warning = FALSE, error = FALSE}
+fixed.mlm2 <- lmer(sci ~ 0 + wave + factor(site) + (1 + wave | id),
+                na.action = na.omit,
+                REML = TRUE,
+                data = achieve)
+summary(fixed.mlm2, correlation = FALSE)
+```
+
+These results are equivalent to the first coding scheme but we get the intercept estimate for each site  instead of computing differences from a chosen site (note the change in what the inference test tells us).
+
+Like mentioned above, the fixed effect approach is most commonly used for intercept differences, but can logically be extended to account for effect differences across sites (or another grouping variable). We can accomplish this by modeling the interaction of site with our time predictor like below.
+
+```{r fix03, message = FALSE, warning = FALSE, error = FALSE}
+fixed.mlm3 <- lmer(sci ~ 1 + wave + factor(site) + wave:factor(site) + (1 + wave | id),
+                na.action = na.omit,
+                REML = TRUE,
+                data = achieve)
+summary(fixed.mlm3, correlation = FALSE)
+```
+
+Here we return to the reference coding to test whether the effect of wave differs across sites from the reference. We can see how parameter do tend to multiply rapidly, however, with a relatively small set of grouping levels (here we only have 5 site), this is manageable. With larger numbers of groups (e.g., families), this approach would become less tenable. Note that we still have our random effect across individuals, but we've removed site-level differences from those estimates through the use of the fixed effects approach. Very often we will not interpret the associated parameters, but include them to de-confound our estimates of interest. Another thing to mention is that this isn't a "pure" form of the fixed-effects approach, since we still include the random effect of individual. The purely fixed-effect approach is more common/appropriate for group-based clustered (e.g., site, country) rather than individual-based clustering (as we always have in longitudinal data) since we cannot include individual level fixed-effects without breaking the model (it isn't identified).
+
+## Random Effect Approach
+If we want to move into accounting for grouping variables with many levels, the random effects framework provides a nice and ready solution. Indeed, we have been using it for the nesting of repeated measures within individuals this whole time. Within MEMs, we can include higher levels of nesting by expanding the structure of the random effects in our model syntax. Here we expand our classic `(1 + wave | id)` to include the higher level of nesting individuals within schools `(1 + wave | school/id)`.
+
+```{r rnd01, message = FALSE, warning = FALSE, error = FALSE}
+rand.mlm <- lmer(sci ~ 1 + wave + (1 + wave | school/id),
+                na.action = na.omit,
+                REML = TRUE,
+                data = achieve)
+
+summary(rand.mlm, correlation = FALSE)
+```
+
+The ordering of `school/id` is important otherwise we have schools nested within individual which will make the model sad (it's true). We can check that we've done this in the model summary where we have $1200$ individuals nested within schools (`id:school`) and $41$ schools. If we compare this model to the model where we ignore nesting within school, we will notice that the fixed effects have not changed that much, but that our estimate of individual-level variance has been broken up into individual- and school-level variability. This situation is fairly common (although not guaranteed), with fixed effects that are relatively robust to omitting higher levels of nesting, but mis-attributed variance estimates at lower levels of nesting that over-estimate inter-individual variance.
+
+Compared with the fairly natural extension of the MEMs to higher levels of nesting, multilevel SEM estimation is much more challenging and the current options in R are fairly limited. For instance, **lavaan** currently only allows complete case continuous data with a random intercept at the higher level of nesting (see the current [tutorial](https://lavaan.ugent.be/tutorial/multilevel.html)). This is an active area of improvement so additional options are likely to be available soon. We provide **Mplus** examples of the full model that more closely resembles the MLM above. However, for completeness, we fit the model we can in **lavaan** below.
+
+```{r rnd02, message = FALSE, warning = FALSE, error = FALSE}
+mlsem <- "
+           level: 1
+           int.w =~ 1*sci.1 + 1*sci.2 + 1*sci.3 + 1*sci.4
+           slp.w =~ 0*sci.1 + 1*sci.2 + 2*sci.3 + 3*sci.4
+           
+           sci.1 ~~ a*sci.1
+           sci.2 ~~ a*sci.2
+           sci.3 ~~ a*sci.3
+           sci.4 ~~ a*sci.4
+           
+           level: 2
+           int.b =~ 1*sci.1 + 1*sci.2 + 1*sci.3 + 1*sci.4
+           
+           sci.1 ~~ b*sci.1
+           sci.2 ~~ b*sci.2
+           sci.3 ~~ b*sci.3
+           sci.4 ~~ b*sci.4"
+
+
+
+mlsem.fit <- growth(mlsem,
+                    data = achieve.wide,
+                    cluster = "school",
+                    estimator = "ML",
+                    missing = "listwise",
+                    optim.method = "em")
+
+summary(mlsem.fit, fit.measures = TRUE, estimates = TRUE, 
+        standardize = TRUE, rsquare = TRUE)
+```
+
+Here we get a similar layout for the results as the multiple groups model, with the within estimates first, and then the school-level estimates next. We needed to set the residuals to be homoscedastic to achieve convergence here, but in principle these can be allowed to vary.
+
+## Cluster Correction
+The fixed effects point estimates within the model tend to be robust to the omission of higher levels of nesting, however, their standard errors do tend to be inaccurate. As such, sometimes we might wish to simply not interpret the variance components and focus on regression coefficients or other parts of our model. This might be less frequent in growth modeling, but for completeness we will consider this type of application. In this instance, we can simply implement a cluster-correction to our standard errors and then proceed as usual to interpret the model parameters. To our knowledge, this is not currently an option in R, so we provide the **Mplus** syntax to do so below.
+
+```{r, cleanup nesting, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
+rm(list = ls(all.names = FALSE))
+```
