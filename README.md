@@ -4,24 +4,36 @@
 # The Hitchhiker’s Guide to Longitudinal Models: A Primer on Model Selection for Repeated-Measures Methods
 
 [Ethan M. McCormick](https://e-m-mccormick.github.io/) \| Department of
-Methodology & Statistics \| Leiden University [Michelle L.
+Methodology & Statistics \| Leiden University
+
+[Michelle L.
 Byrne](https://research.monash.edu/en/persons/michelle-byrne) \| Turner
-Institute for Brain and Mental Health \| Monash University [John C.
-Flournoy](https://johnflournoy.science/) \| Department of Psychology \|
-Harvard University [Kathryn L. Mills](http://devbrainlab.org/) \|
-Department of Psychology \| University of Oregon [Jennifer H.
-Pfeifer](https://dsn.uoregon.edu/) \| Department of Psychology \|
-University of Oregon
+Institute for Brain and Mental Health \| Monash University
+
+[John C. Flournoy](https://johnflournoy.science/) \| Department of
+Psychology \| Harvard University
+
+[Kathryn L. Mills](http://devbrainlab.org/) \| Department of Psychology
+\| University of Oregon
+
+[Jennifer H. Pfeifer](https://dsn.uoregon.edu/) \| Department of
+Psychology \| University of Oregon
 
 ------------------------------------------------------------------------
 
-\[![OSF
-DOI](https://img.shields.io/badge/OSF-10.17605%2FOSF.IO%2FMTR6X-blue)\]\[https://osf.io/bn6yu/\]
+<div>
+
+[![](https://img.shields.io/badge/OSF-10.17605%2FOSF.IO%2FMTR6X-blue)](https://osf.io/bn6yu/)
+
+OSF DOI
+
+</div>
 
 > Ethan M. McCormick, Michelle L. Byrne, John C. Flournoy, Kathryn L.
 > Mills, & Jennifer H. Pfeifer. 2022. [“The Hitchhiker’s Guide to
 > Longitudinal Models: A Primer on Model Selection for Repeated-Measures
 > Methods,”](https://doi.org/10.31234/osf.io/ga4qz) *preprint*.
+> PsyArXiv.
 
 ------------------------------------------------------------------------
 
