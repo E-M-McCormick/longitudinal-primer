@@ -1,5 +1,5 @@
 ---
-format: gfm
+output: github_document
 ---
 
 <!-- README.md is generated from README.qmd. Please edit that file -->
@@ -30,7 +30,7 @@ Year <- 2022
 
 ---
 
-[![OSF DOI](https://img.shields.io/badge/OSF-10.17605%2FOSF.IO%2FMTR6X-blue)](https://osf.io/bn6yu/)
+[![](https://img.shields.io/badge/OSF-10.17605%2FOSF.IO%2FMTR6X-blue)](https://osf.io/bn6yu/)
 
 > `r Authors`. `r Year`. ["`r Title`,"](https://doi.org/10.31234/osf.io/ga4qz) *preprint*. PsyArXiv.
 
@@ -46,12 +46,12 @@ Longitudinal data are becoming increasingly available in developmental neuroimag
 
 Code examples and additional information/explanations can be found [here](https://e-m-mccormick.github.io/static/longitudinal-primer/index.html).
 
-![Codebook](img/codebook-screenshot.png)
+![](img/codebook-screenshot.png)
 
 ---
 
 ## Licenses
 
-**Text and figures:** All prose and images are licensed under Creative Commons ([CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/))
+**Text and figures:** All text and images are licensed under Creative Commons ([CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/))
 
 **Code:** All code is licensed under the [MIT License](LICENSE.md).
