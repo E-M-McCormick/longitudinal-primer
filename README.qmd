@@ -18,6 +18,6 @@ Year <- 2022
 ```
 
 # `r Title`
-[Ethan M. McCormick](https://e-m-mccormick.github.io/) \* Department of Methodology \& Statistics \* Leiden University
+[Ethan M. McCormick](https://e-m-mccormick.github.io/) | Department of Methodology \& Statistics | Leiden University
 
 
