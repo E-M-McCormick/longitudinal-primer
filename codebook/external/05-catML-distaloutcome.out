@@ -1,0 +1,352 @@
+Mplus VERSION 8.6 (Mac)
+MUTHEN & MUTHEN
+02/13/2023   8:50 PM
+
+INPUT INSTRUCTIONS
+
+  TITLE:
+   Chapter 5: Distal Outcome with Categorical Maximum Likelihood
+  DATA:
+   FILE = 05-externalizing.dat;
+  VARIABLE:
+   NAMES = id ext6 ext8 ext10 ext12 ext14 incarc;
+   USEVARIABLES = ext6 ext8 ext10 ext12 ext14 incarc;
+   CATEGORICAL = incarc;
+   MISSING = .;
+  ANALYSIS:
+   ESTIMATOR = ML;
+   LINK = LOGIT;
+  MODEL:
+    int slp | ext6@0 ext8@2 ext10@4 ext12@6 ext14@8;
+    [int slp];
+    int slp;
+
+    incarc ON int slp;
+
+  OUTPUT:
+   STDYX;
+
+
+
+
+
+INPUT READING TERMINATED NORMALLY
+
+
+
+
+Chapter 5: Distal Outcome with Categorical Maximum Likelihood
+
+SUMMARY OF ANALYSIS
+
+Number of groups                                                 1
+Number of observations                                         405
+
+Number of dependent variables                                    6
+Number of independent variables                                  0
+Number of continuous latent variables                            2
+
+Observed dependent variables
+
+  Continuous
+   EXT6        EXT8        EXT10       EXT12       EXT14
+
+  Binary and ordered categorical (ordinal)
+   INCARC
+
+Continuous latent variables
+   INT         SLP
+
+
+Estimator                                                       ML
+Information matrix                                        OBSERVED
+Optimization Specifications for the Quasi-Newton Algorithm for
+Continuous Outcomes
+  Maximum number of iterations                                 100
+  Convergence criterion                                  0.100D-05
+Optimization Specifications for the EM Algorithm
+  Maximum number of iterations                                 500
+  Convergence criteria
+    Loglikelihood change                                 0.100D-02
+    Relative loglikelihood change                        0.100D-05
+    Derivative                                           0.100D-02
+Optimization Specifications for the M step of the EM Algorithm for
+Categorical Latent variables
+  Number of M step iterations                                    1
+  M step convergence criterion                           0.100D-02
+  Basis for M step termination                           ITERATION
+Optimization Specifications for the M step of the EM Algorithm for
+Censored, Binary or Ordered Categorical (Ordinal), Unordered
+Categorical (Nominal) and Count Outcomes
+  Number of M step iterations                                    1
+  M step convergence criterion                           0.100D-02
+  Basis for M step termination                           ITERATION
+  Maximum value for logit thresholds                            15
+  Minimum value for logit thresholds                           -15
+  Minimum expected cell size for chi-square              0.100D-01
+Maximum number of iterations for H1                           2000
+Convergence criterion for H1                             0.100D-03
+Optimization algorithm                                         EMA
+Integration Specifications
+  Type                                                    STANDARD
+  Number of integration points                                  15
+  Dimensions of numerical integration                            2
+  Adaptive quadrature                                           ON
+Link                                                         LOGIT
+Cholesky                                                       OFF
+
+Input data file(s)
+  05-externalizing.dat
+Input data format  FREE
+
+
+SUMMARY OF DATA
+
+     Number of missing data patterns            21
+     Number of y missing data patterns          21
+     Number of u missing data patterns           1
+
+
+COVARIANCE COVERAGE OF DATA
+
+Minimum covariance coverage value   0.100
+
+
+     PROPORTION OF DATA PRESENT FOR Y
+
+
+           Covariance Coverage
+              EXT6          EXT8          EXT10         EXT12         EXT14
+              ________      ________      ________      ________      ________
+ EXT6           0.716
+ EXT8           0.551         0.835
+ EXT10          0.548         0.662         0.800
+ EXT12          0.538         0.617         0.662         0.731
+ EXT14          0.086         0.190         0.237         0.249         0.269
+
+     WARNING:  THE COVARIANCE COVERAGE FALLS BELOW THE SPECIFIED LIMIT.
+
+
+UNIVARIATE PROPORTIONS AND COUNTS FOR CATEGORICAL VARIABLES
+
+    INCARC
+      Category 1    0.931          377.000
+      Category 2    0.069           28.000
+
+
+
+UNIVARIATE SAMPLE STATISTICS
+
+
+     UNIVARIATE HIGHER-ORDER MOMENT DESCRIPTIVE STATISTICS
+
+         Variable/         Mean/     Skewness/   Minimum/ % with                Percentiles
+        Sample Size      Variance    Kurtosis    Maximum  Min/Max      20%/60%    40%/80%    Median
+
+     EXT6                  1.562       1.198       0.000   32.41%       0.000      1.000      1.000
+             290.000       2.550       1.647       9.000    0.34%       2.000      3.000
+     EXT8                  1.923       1.122       0.000   26.04%       0.000      1.000      1.000
+             338.000       3.544       0.813       9.000    0.30%       2.000      3.000
+     EXT10                 1.949       1.413       0.000   28.40%       0.000      1.000      1.000
+             324.000       4.159       2.122      10.000    0.93%       2.000      3.000
+     EXT12                 2.066       1.098       0.000   29.39%       0.000      1.000      2.000
+             296.000       4.268       0.982      10.000    0.34%       2.000      4.000
+     EXT14                 1.899       1.157       0.000   35.78%       0.000      1.000      1.000
+             109.000       4.274       1.170      10.000    0.92%       2.000      4.000
+
+
+THE MODEL ESTIMATION TERMINATED NORMALLY
+
+
+
+MODEL FIT INFORMATION
+
+Number of Free Parameters                       13
+
+Loglikelihood
+
+          H0 Value                       -2703.251
+
+Information Criteria
+
+          Akaike (AIC)                    5432.502
+          Bayesian (BIC)                  5484.553
+          Sample-Size Adjusted BIC        5443.302
+            (n* = (n + 2) / 24)
+
+Chi-Square Test of Model Fit for the Binary and Ordered Categorical
+(Ordinal) Outcomes
+
+          Pearson Chi-Square
+
+          Value                              0.210
+          Degrees of freedom cannot be computed for this model part.
+
+          Likelihood Ratio Chi-Square
+
+          Value                              0.204
+          Degrees of freedom cannot be computed for this model part.
+
+
+
+MODEL RESULTS
+
+                                                    Two-Tailed
+                    Estimate       S.E.  Est./S.E.    P-Value
+
+ INT      |
+    EXT6               1.000      0.000    999.000    999.000
+    EXT8               1.000      0.000    999.000    999.000
+    EXT10              1.000      0.000    999.000    999.000
+    EXT12              1.000      0.000    999.000    999.000
+    EXT14              1.000      0.000    999.000    999.000
+
+ SLP      |
+    EXT6               0.000      0.000    999.000    999.000
+    EXT8               2.000      0.000    999.000    999.000
+    EXT10              4.000      0.000    999.000    999.000
+    EXT12              6.000      0.000    999.000    999.000
+    EXT14              8.000      0.000    999.000    999.000
+
+ INCARC     ON
+    INT                2.317      1.719      1.347      0.178
+    SLP               -2.670      8.690     -0.307      0.759
+
+ SLP      WITH
+    INT                0.075      0.043      1.739      0.082
+
+ Means
+    INT                1.658      0.081     20.454      0.000
+    SLP                0.076      0.018      4.221      0.000
+
+ Intercepts
+    EXT6               0.000      0.000    999.000    999.000
+    EXT8               0.000      0.000    999.000    999.000
+    EXT10              0.000      0.000    999.000    999.000
+    EXT12              0.000      0.000    999.000    999.000
+    EXT14              0.000      0.000    999.000    999.000
+
+ Thresholds
+    INCARC$1           8.045      3.637      2.212      0.027
+
+ Variances
+    INT                1.096      0.229      4.793      0.000
+    SLP                0.027      0.012      2.306      0.021
+
+ Residual Variances
+    EXT6               1.577      0.234      6.732      0.000
+    EXT8               1.855      0.186      9.981      0.000
+    EXT10              1.951      0.200      9.755      0.000
+    EXT12              1.545      0.224      6.911      0.000
+    EXT14              1.581      0.370      4.274      0.000
+
+
+QUALITY OF NUMERICAL RESULTS
+
+     Condition Number for the Information Matrix              0.765E-06
+       (ratio of smallest to largest eigenvalue)
+
+
+RESULTS IN PROBABILITY SCALE
+
+                    Estimate
+
+ INCARC
+    Category 1         0.936
+    Category 2         0.064
+
+
+LOGISTIC REGRESSION ODDS RATIO RESULTS
+
+                                                95% C.I.
+                    Estimate       S.E.  Lower 2.5% Upper 2.5%
+
+ INCARC     ON
+    INT               10.141     17.436      0.349    294.862
+    SLP                0.069      0.602      0.000  *********
+
+
+STANDARDIZED MODEL RESULTS
+
+
+STDYX Standardization
+
+                                                    Two-Tailed
+                    Estimate       S.E.  Est./S.E.    P-Value
+
+ INT      |
+    EXT6               0.640      0.060     10.690      0.000
+    EXT8               0.571      0.055     10.302      0.000
+    EXT10              0.518      0.053      9.826      0.000
+    EXT12              0.493      0.053      9.219      0.000
+    EXT14              0.442      0.052      8.530      0.000
+
+ SLP      |
+    EXT6               0.000      0.000    999.000    999.000
+    EXT8               0.180      0.039      4.561      0.000
+    EXT10              0.326      0.070      4.682      0.000
+    EXT12              0.465      0.099      4.710      0.000
+    EXT14              0.556      0.109      5.089      0.000
+
+ INCARC     ON
+    INT                0.835      0.312      2.679      0.007
+    SLP               -0.151      0.427     -0.354      0.723
+
+ SLP      WITH
+    INT                0.434      0.354      1.226      0.220
+
+ Means
+    INT                1.584      0.183      8.651      0.000
+    SLP                0.460      0.141      3.261      0.001
+
+ Intercepts
+    EXT6               0.000      0.000    999.000    999.000
+    EXT8               0.000      0.000    999.000    999.000
+    EXT10              0.000      0.000    999.000    999.000
+    EXT12              0.000      0.000    999.000    999.000
+    EXT14              0.000      0.000    999.000    999.000
+
+ Thresholds
+    INCARC$1           2.770      0.419      6.610      0.000
+
+ Variances
+    INT                1.000      0.000    999.000    999.000
+    SLP                1.000      0.000    999.000    999.000
+
+ Residual Variances
+    EXT6               0.590      0.077      7.693      0.000
+    EXT8               0.552      0.040     13.746      0.000
+    EXT10              0.478      0.037     12.997      0.000
+    EXT12              0.342      0.047      7.354      0.000
+    EXT14              0.282      0.056      5.003      0.000
+
+
+R-SQUARE
+
+    Observed                                        Two-Tailed
+    Variable        Estimate       S.E.  Est./S.E.    P-Value
+
+    INCARC             0.610      0.245      2.485      0.013
+    EXT6               0.410      0.077      5.345      0.000
+    EXT8               0.448      0.040     11.136      0.000
+    EXT10              0.522      0.037     14.168      0.000
+    EXT12              0.658      0.047     14.126      0.000
+    EXT14              0.718      0.056     12.739      0.000
+
+
+     Beginning Time:  20:50:30
+        Ending Time:  20:50:32
+       Elapsed Time:  00:00:02
+
+
+
+MUTHEN & MUTHEN
+3463 Stoner Ave.
+Los Angeles, CA  90066
+
+Tel: (310) 391-9971
+Fax: (310) 391-8971
+Web: www.StatModel.com
+Support: Support@StatModel.com
+
+Copyright (c) 1998-2021 Muthen & Muthen

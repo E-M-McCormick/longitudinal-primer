@@ -1,0 +1,23 @@
+TITLE:
+ Chapter 5: Distal Outcome with Categorical Maximum Likelihood
+DATA:
+ FILE = 05-externalizing.dat;
+VARIABLE:
+ NAMES = id ext6 ext8 ext10 ext12 ext14 incarc; 
+ USEVARIABLES = ext6 ext8 ext10 ext12 ext14 incarc;
+ CATEGORICAL = incarc;
+ MISSING = .;
+ANALYSIS:
+ ESTIMATOR = ML;
+ LINK = LOGIT;
+MODEL:
+  int slp | ext6@0 ext8@2 ext10@4 ext12@6 ext14@8;
+  [int slp];
+  int slp;
+  
+  incarc ON int slp;
+  
+OUTPUT:
+ STDYX;
+
+ 

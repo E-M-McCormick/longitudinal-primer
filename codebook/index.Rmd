@@ -1,7 +1,7 @@
 --- 
 title: "The Hitchhiker’s Guide to Longitudinal Models"
 subtitle: "Code Companion"
-author: "[Ethan M. McCormick](https://mccormickneuro.github.io/)"
+author: "[Ethan M. McCormick](https://e-m-mccormick.github.io/)"
 date: "Published: `r format(Sys.time(), '%d %B, %Y')`"
 site: bookdown::bookdown_site
 documentclass: book
@@ -27,7 +27,7 @@ Some general notes about this code companion:
 
 - We believe in the importance of using real data in our examples of longitudinal models. However, some of the models we discuss can not yet be fit using publicly-available neuroimaging data (most often due to a limited number of observations). To bridge this gap, we have synthesized data from a number of sources, detailed in [Datasets](#datasets). Variable names and identification codes have been changed to protect the innocent and to provide examples that will be familiar to developmental cognitive neuroscience researchers. However, one limitation of synthesized data is that model fits are often significantly worsened compared to the real data. As such, for pedagogical purposes, we will fit (and sometimes interpret) results from models that we would usually reject in practice based on overall model fit.
 
-- Given the nature of R, there are likely several ways to accomplish what we outline here. This code should not be taken as the *definitive* one way that data manipulation or model fitting can be accomplished, but rather as a standard pipeline that should hopefully be accessible to new users of R and longitudinal methods more generally.
+- Given the nature of R, there are likely several ways to accomplish what we outline here. This code should not be taken as the *definitive* one way that data manipulation or model fitting can be accomplished, but rather as a standard pipeline that are hopefully accessible to new users of R and longitudinal methods more generally.
 
 - In general, we will include the code used to generate the results. However, in the interest of spending more time on the models and associated syntax, we may not include an in-depth explanation of every function or syntax option. The rmarkdown source files are available in a public [github repository](https://github.com/McCormickNeuro/longitudinal-primer) for those interested.
 

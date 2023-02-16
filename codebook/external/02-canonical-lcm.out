@@ -1,0 +1,282 @@
+Mplus VERSION 8.6 (Mac)
+MUTHEN & MUTHEN
+02/13/2023  10:25 AM
+
+INPUT INSTRUCTIONS
+
+  TITLE:
+   Chapter 2: Canonical Latent Curve Model (LCM)
+  DATA:
+   FILE = 02-executive-function.dat;
+  VARIABLE:
+   NAMES = id dlpfc1-dlpfc4;
+   USEVARIABLES = dlpfc1-dlpfc4;
+   MISSING = .;
+  ANALYSIS:
+   ESTIMATOR = ML;
+  MODEL:
+   ! Define the Latent Variables (the | is a shortcut the usual BY syntax)
+   int slp | dlpfc1@0 dlpfc2@1 dlpfc3@2 dlpfc4@3;
+
+   ! Define Factor Means
+   [int slp];
+
+   ! Define Factor (Co)Variances
+   int slp;
+   int WITH slp;
+
+   ! Define Indicator Residual Variances
+   dlpfc1-dlpfc4;
+
+  OUTPUT:
+   STDYX;
+
+
+
+INPUT READING TERMINATED NORMALLY
+
+
+
+
+Chapter 2: Canonical Latent Curve Model (LCM)
+
+SUMMARY OF ANALYSIS
+
+Number of groups                                                 1
+Number of observations                                         342
+
+Number of dependent variables                                    4
+Number of independent variables                                  0
+Number of continuous latent variables                            2
+
+Observed dependent variables
+
+  Continuous
+   DLPFC1      DLPFC2      DLPFC3      DLPFC4
+
+Continuous latent variables
+   INT         SLP
+
+
+Estimator                                                       ML
+Information matrix                                        OBSERVED
+Maximum number of iterations                                  1000
+Convergence criterion                                    0.500D-04
+Maximum number of steepest descent iterations                   20
+Maximum number of iterations for H1                           2000
+Convergence criterion for H1                             0.100D-03
+
+Input data file(s)
+  02-executive-function.dat
+
+Input data format  FREE
+
+
+SUMMARY OF DATA
+
+     Number of missing data patterns             8
+
+
+COVARIANCE COVERAGE OF DATA
+
+Minimum covariance coverage value   0.100
+
+
+     PROPORTION OF DATA PRESENT
+
+
+           Covariance Coverage
+              DLPFC1        DLPFC2        DLPFC3        DLPFC4
+              ________      ________      ________      ________
+ DLPFC1         1.000
+ DLPFC2         0.950         0.950
+ DLPFC3         0.936         0.901         0.936
+ DLPFC4         0.927         0.889         0.895         0.927
+
+
+
+UNIVARIATE SAMPLE STATISTICS
+
+
+     UNIVARIATE HIGHER-ORDER MOMENT DESCRIPTIVE STATISTICS
+
+         Variable/         Mean/     Skewness/   Minimum/ % with                Percentiles
+        Sample Size      Variance    Kurtosis    Maximum  Min/Max      20%/60%    40%/80%    Median
+
+     DLPFC1                0.540       0.115      -2.481    0.29%      -0.184      0.472      0.472
+             342.000       0.997       0.171       3.098    1.75%       0.801      1.129
+     DLPFC2                0.669      -0.072      -2.481    0.62%      -0.184      0.472      0.801
+             325.000       1.203       0.024       3.098    3.38%       0.801      1.457
+     DLPFC3                0.788      -0.056      -2.481    0.31%      -0.184      0.472      0.801
+             320.000       1.182      -0.059       3.098    2.81%       1.129      1.785
+     DLPFC4                0.911      -0.071      -2.810    0.32%       0.144      0.801      0.801
+             317.000       1.129       0.117       3.098    4.10%       1.129      1.785
+
+
+THE MODEL ESTIMATION TERMINATED NORMALLY
+
+
+
+MODEL FIT INFORMATION
+
+Number of Free Parameters                        9
+
+Loglikelihood
+
+          H0 Value                       -1735.785
+          H1 Value                       -1735.170
+
+Information Criteria
+
+          Akaike (AIC)                    3489.570
+          Bayesian (BIC)                  3524.083
+          Sample-Size Adjusted BIC        3495.533
+            (n* = (n + 2) / 24)
+
+Chi-Square Test of Model Fit
+
+          Value                              1.229
+          Degrees of Freedom                     5
+          P-Value                           0.9420
+
+RMSEA (Root Mean Square Error Of Approximation)
+
+          Estimate                           0.000
+          90 Percent C.I.                    0.000  0.014
+          Probability RMSEA <= .05           0.990
+
+CFI/TLI
+
+          CFI                                1.000
+          TLI                                1.000
+
+Chi-Square Test of Model Fit for the Baseline Model
+
+          Value                            381.370
+          Degrees of Freedom                     6
+          P-Value                           0.0000
+
+SRMR (Standardized Root Mean Square Residual)
+
+          Value                              0.013
+
+
+
+MODEL RESULTS
+
+                                                    Two-Tailed
+                    Estimate       S.E.  Est./S.E.    P-Value
+
+ INT      |
+    DLPFC1             1.000      0.000    999.000    999.000
+    DLPFC2             1.000      0.000    999.000    999.000
+    DLPFC3             1.000      0.000    999.000    999.000
+    DLPFC4             1.000      0.000    999.000    999.000
+
+ SLP      |
+    DLPFC1             0.000      0.000    999.000    999.000
+    DLPFC2             1.000      0.000    999.000    999.000
+    DLPFC3             2.000      0.000    999.000    999.000
+    DLPFC4             3.000      0.000    999.000    999.000
+
+ INT      WITH
+    SLP               -0.126      0.031     -4.102      0.000
+
+ Means
+    INT                0.543      0.053     10.181      0.000
+    SLP                0.121      0.021      5.705      0.000
+
+ Intercepts
+    DLPFC1             0.000      0.000    999.000    999.000
+    DLPFC2             0.000      0.000    999.000    999.000
+    DLPFC3             0.000      0.000    999.000    999.000
+    DLPFC4             0.000      0.000    999.000    999.000
+
+ Variances
+    INT                0.775      0.086      9.009      0.000
+    SLP                0.082      0.016      5.180      0.000
+
+ Residual Variances
+    DLPFC1             0.231      0.063      3.675      0.000
+    DLPFC2             0.568      0.055     10.261      0.000
+    DLPFC3             0.582      0.058     10.117      0.000
+    DLPFC4             0.393      0.074      5.308      0.000
+
+
+QUALITY OF NUMERICAL RESULTS
+
+     Condition Number for the Information Matrix              0.534E-02
+       (ratio of smallest to largest eigenvalue)
+
+
+STANDARDIZED MODEL RESULTS
+
+
+STDYX Standardization
+
+                                                    Two-Tailed
+                    Estimate       S.E.  Est./S.E.    P-Value
+
+ INT      |
+    DLPFC1             0.878      0.034     25.526      0.000
+    DLPFC2             0.813      0.034     24.032      0.000
+    DLPFC3             0.810      0.045     18.023      0.000
+    DLPFC4             0.820      0.055     15.035      0.000
+
+ SLP      |
+    DLPFC1             0.000      0.000    999.000    999.000
+    DLPFC2             0.265      0.025     10.595      0.000
+    DLPFC3             0.528      0.051     10.390      0.000
+    DLPFC4             0.802      0.082      9.800      0.000
+
+ INT      WITH
+    SLP               -0.499      0.071     -7.073      0.000
+
+ Means
+    INT                0.617      0.070      8.838      0.000
+    SLP                0.420      0.083      5.054      0.000
+
+ Intercepts
+    DLPFC1             0.000      0.000    999.000    999.000
+    DLPFC2             0.000      0.000    999.000    999.000
+    DLPFC3             0.000      0.000    999.000    999.000
+    DLPFC4             0.000      0.000    999.000    999.000
+
+ Variances
+    INT                1.000      0.000    999.000    999.000
+    SLP                1.000      0.000    999.000    999.000
+
+ Residual Variances
+    DLPFC1             0.229      0.060      3.798      0.000
+    DLPFC2             0.484      0.033     14.603      0.000
+    DLPFC3             0.493      0.035     13.944      0.000
+    DLPFC4             0.341      0.060      5.715      0.000
+
+
+R-SQUARE
+
+    Observed                                        Two-Tailed
+    Variable        Estimate       S.E.  Est./S.E.    P-Value
+
+    DLPFC1             0.771      0.060     12.763      0.000
+    DLPFC2             0.516      0.033     15.569      0.000
+    DLPFC3             0.507      0.035     14.366      0.000
+    DLPFC4             0.659      0.060     11.060      0.000
+
+
+     Beginning Time:  10:25:35
+        Ending Time:  10:25:35
+       Elapsed Time:  00:00:00
+
+
+
+MUTHEN & MUTHEN
+3463 Stoner Ave.
+Los Angeles, CA  90066
+
+Tel: (310) 391-9971
+Fax: (310) 391-8971
+Web: www.StatModel.com
+Support: Support@StatModel.com
+
+Copyright (c) 1998-2021 Muthen & Muthen

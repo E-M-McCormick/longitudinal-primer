@@ -1,0 +1,402 @@
+Mplus VERSION 8.6 (Mac)
+MUTHEN & MUTHEN
+02/13/2023  10:31 AM
+
+INPUT INSTRUCTIONS
+
+  TITLE:
+   Chapter 2: Canonical Latent Change Score Model with Proportional Change (LCSM)
+  DATA:
+   FILE = 02-executive-function.dat;
+  VARIABLE:
+   NAMES = id dlpfc1-dlpfc4;
+   USEVARIABLES = dlpfc1-dlpfc4;
+   MISSING = .;
+  ANALYSIS:
+   ESTIMATOR = ML;
+  MODEL:
+   ! Define Phantom Variables (p = phantom)
+   pdlpfc1 BY dlpfc1@1;
+   pdlpfc2 BY dlpfc2@1;
+   pdlpfc3 BY dlpfc3@1;
+   pdlpfc4 BY dlpfc4@1;
+
+   [dlpfc1-dlpfc4@0];
+   dlpfc1-dlpfc4;
+
+   pdlpfc1-pdlpfc4@0;
+
+   ! Regressions Between Adjacent Observations
+   pdlpfc2 ON pdlpfc1@1;
+   pdlpfc3 ON pdlpfc2@1;
+   pdlpfc4 ON pdlpfc3@1;
+
+   ! Define Change Latent Variables (delta)
+   delta21 BY pdlpfc2@1;
+   delta32 BY pdlpfc3@1;
+   delta43 BY pdlpfc4@1;
+
+   delta21-delta43@0;
+
+   ! Define Proportional Change Regressions (beta = equality constraint)
+   delta21 ON pdlpfc1 (beta);
+   delta32 ON pdlpfc2 (beta);
+   delta43 ON pdlpfc3 (beta);
+
+   ! Define Intercept and Slope
+   int BY pdlpfc1@1;
+   slp BY delta21-delta43@1;
+
+   [int slp];
+   int slp;
+   int WITH slp;
+
+  OUTPUT:
+   STDYX;
+
+
+
+
+INPUT READING TERMINATED NORMALLY
+
+
+
+
+Chapter 2: Canonical Latent Change Score Model with Proportional Change (LCSM)
+
+SUMMARY OF ANALYSIS
+
+Number of groups                                                 1
+Number of observations                                         342
+
+Number of dependent variables                                    4
+Number of independent variables                                  0
+Number of continuous latent variables                            9
+
+Observed dependent variables
+
+  Continuous
+   DLPFC1      DLPFC2      DLPFC3      DLPFC4
+
+Continuous latent variables
+   PDLPFC1     PDLPFC2     PDLPFC3     PDLPFC4     DELTA21     DELTA32
+   DELTA43     INT         SLP
+
+
+Estimator                                                       ML
+Information matrix                                        OBSERVED
+Maximum number of iterations                                  1000
+Convergence criterion                                    0.500D-04
+Maximum number of steepest descent iterations                   20
+Maximum number of iterations for H1                           2000
+Convergence criterion for H1                             0.100D-03
+
+Input data file(s)
+  02-executive-function.dat
+
+Input data format  FREE
+
+
+SUMMARY OF DATA
+
+     Number of missing data patterns             8
+
+
+COVARIANCE COVERAGE OF DATA
+
+Minimum covariance coverage value   0.100
+
+
+     PROPORTION OF DATA PRESENT
+
+
+           Covariance Coverage
+              DLPFC1        DLPFC2        DLPFC3        DLPFC4
+              ________      ________      ________      ________
+ DLPFC1         1.000
+ DLPFC2         0.950         0.950
+ DLPFC3         0.936         0.901         0.936
+ DLPFC4         0.927         0.889         0.895         0.927
+
+
+
+UNIVARIATE SAMPLE STATISTICS
+
+
+     UNIVARIATE HIGHER-ORDER MOMENT DESCRIPTIVE STATISTICS
+
+         Variable/         Mean/     Skewness/   Minimum/ % with                Percentiles
+        Sample Size      Variance    Kurtosis    Maximum  Min/Max      20%/60%    40%/80%    Median
+
+     DLPFC1                0.540       0.115      -2.481    0.29%      -0.184      0.472      0.472
+             342.000       0.997       0.171       3.098    1.75%       0.801      1.129
+     DLPFC2                0.669      -0.072      -2.481    0.62%      -0.184      0.472      0.801
+             325.000       1.203       0.024       3.098    3.38%       0.801      1.457
+     DLPFC3                0.788      -0.056      -2.481    0.31%      -0.184      0.472      0.801
+             320.000       1.182      -0.059       3.098    2.81%       1.129      1.785
+     DLPFC4                0.911      -0.071      -2.810    0.32%       0.144      0.801      0.801
+             317.000       1.129       0.117       3.098    4.10%       1.129      1.785
+
+
+THE MODEL ESTIMATION TERMINATED NORMALLY
+
+
+
+MODEL FIT INFORMATION
+
+Number of Free Parameters                       10
+
+Loglikelihood
+
+          H0 Value                       -1735.736
+          H1 Value                       -1735.170
+
+Information Criteria
+
+          Akaike (AIC)                    3491.472
+          Bayesian (BIC)                  3529.821
+          Sample-Size Adjusted BIC        3498.098
+            (n* = (n + 2) / 24)
+
+Chi-Square Test of Model Fit
+
+          Value                              1.132
+          Degrees of Freedom                     4
+          P-Value                           0.8892
+
+RMSEA (Root Mean Square Error Of Approximation)
+
+          Estimate                           0.000
+          90 Percent C.I.                    0.000  0.038
+          Probability RMSEA <= .05           0.973
+
+CFI/TLI
+
+          CFI                                1.000
+          TLI                                1.000
+
+Chi-Square Test of Model Fit for the Baseline Model
+
+          Value                            381.370
+          Degrees of Freedom                     6
+          P-Value                           0.0000
+
+SRMR (Standardized Root Mean Square Residual)
+
+          Value                              0.013
+
+
+
+MODEL RESULTS
+
+                                                    Two-Tailed
+                    Estimate       S.E.  Est./S.E.    P-Value
+
+ PDLPFC1  BY
+    DLPFC1             1.000      0.000    999.000    999.000
+
+ PDLPFC2  BY
+    DLPFC2             1.000      0.000    999.000    999.000
+
+ PDLPFC3  BY
+    DLPFC3             1.000      0.000    999.000    999.000
+
+ PDLPFC4  BY
+    DLPFC4             1.000      0.000    999.000    999.000
+
+ DELTA21  BY
+    PDLPFC2            1.000      0.000    999.000    999.000
+
+ DELTA32  BY
+    PDLPFC3            1.000      0.000    999.000    999.000
+
+ DELTA43  BY
+    PDLPFC4            1.000      0.000    999.000    999.000
+
+ INT      BY
+    PDLPFC1            1.000      0.000    999.000    999.000
+
+ SLP      BY
+    DELTA21            1.000      0.000    999.000    999.000
+    DELTA32            1.000      0.000    999.000    999.000
+    DELTA43            1.000      0.000    999.000    999.000
+
+ PDLPFC2  ON
+    PDLPFC1            1.000      0.000    999.000    999.000
+
+ PDLPFC3  ON
+    PDLPFC2            1.000      0.000    999.000    999.000
+
+ PDLPFC4  ON
+    PDLPFC3            1.000      0.000    999.000    999.000
+
+ DELTA21  ON
+    PDLPFC1           -0.090      0.276     -0.325      0.745
+
+ DELTA32  ON
+    PDLPFC2           -0.090      0.276     -0.325      0.745
+
+ DELTA43  ON
+    PDLPFC3           -0.090      0.276     -0.325      0.745
+
+ INT      WITH
+    SLP               -0.074      0.162     -0.457      0.648
+
+ Means
+    INT                0.540      0.054      9.994      0.000
+    SLP                0.180      0.183      0.982      0.326
+
+ Intercepts
+    DLPFC1             0.000      0.000    999.000    999.000
+    DLPFC2             0.000      0.000    999.000    999.000
+    DLPFC3             0.000      0.000    999.000    999.000
+    DLPFC4             0.000      0.000    999.000    999.000
+
+ Variances
+    INT                0.796      0.115      6.924      0.000
+    SLP                0.079      0.016      4.965      0.000
+
+ Residual Variances
+    DLPFC1             0.208      0.102      2.042      0.041
+    DLPFC2             0.573      0.058      9.820      0.000
+    DLPFC3             0.577      0.060      9.570      0.000
+    DLPFC4             0.413      0.095      4.359      0.000
+    PDLPFC1            0.000      0.000    999.000    999.000
+    PDLPFC2            0.000      0.000    999.000    999.000
+    PDLPFC3            0.000      0.000    999.000    999.000
+    PDLPFC4            0.000      0.000    999.000    999.000
+    DELTA21            0.000      0.000    999.000    999.000
+    DELTA32            0.000      0.000    999.000    999.000
+    DELTA43            0.000      0.000    999.000    999.000
+
+
+QUALITY OF NUMERICAL RESULTS
+
+     Condition Number for the Information Matrix              0.518E-03
+       (ratio of smallest to largest eigenvalue)
+
+
+STANDARDIZED MODEL RESULTS
+
+
+STDYX Standardization
+
+                                                    Two-Tailed
+                    Estimate       S.E.  Est./S.E.    P-Value
+
+ PDLPFC1  BY
+    DLPFC1             0.891      0.056     15.947      0.000
+
+ PDLPFC2  BY
+    DLPFC2             0.716      0.024     30.134      0.000
+
+ PDLPFC3  BY
+    DLPFC3             0.714      0.026     27.400      0.000
+
+ PDLPFC4  BY
+    DLPFC4             0.802      0.048     16.835      0.000
+
+ DELTA21  BY
+    PDLPFC2            0.405      0.127      3.192      0.001
+
+ DELTA32  BY
+    PDLPFC3            0.370      0.038      9.752      0.000
+
+ DELTA43  BY
+    PDLPFC4            0.303      0.088      3.431      0.001
+
+ INT      BY
+    PDLPFC1            1.000      0.000    999.000    999.000
+
+ SLP      BY
+    DELTA21            0.895      0.231      3.877      0.000
+    DELTA32            0.983      0.051     19.334      0.000
+    DELTA43            1.080      0.379      2.848      0.004
+
+ PDLPFC2  ON
+    PDLPFC1            1.148      0.068     16.927      0.000
+
+ PDLPFC3  ON
+    PDLPFC2            1.002      0.033     30.309      0.000
+
+ PDLPFC4  ON
+    PDLPFC3            0.900      0.044     20.612      0.000
+
+ DELTA21  ON
+    PDLPFC1           -0.255      0.720     -0.354      0.724
+
+ DELTA32  ON
+    PDLPFC2           -0.244      0.752     -0.324      0.746
+
+ DELTA43  ON
+    PDLPFC3           -0.267      0.907     -0.295      0.768
+
+ INT      WITH
+    SLP               -0.295      0.665     -0.443      0.658
+
+ Means
+    INT                0.605      0.078      7.786      0.000
+    SLP                0.637      0.628      1.015      0.310
+
+ Intercepts
+    DLPFC1             0.000      0.000    999.000    999.000
+    DLPFC2             0.000      0.000    999.000    999.000
+    DLPFC3             0.000      0.000    999.000    999.000
+    DLPFC4             0.000      0.000    999.000    999.000
+
+ Variances
+    INT                1.000      0.000    999.000    999.000
+    SLP                1.000      0.000    999.000    999.000
+
+ Residual Variances
+    DLPFC1             0.207      0.099      2.081      0.037
+    DLPFC2             0.487      0.034     14.296      0.000
+    DLPFC3             0.490      0.037     13.138      0.000
+    DLPFC4             0.357      0.076      4.681      0.000
+    PDLPFC1            0.000    999.000    999.000    999.000
+    PDLPFC2            0.000    999.000    999.000    999.000
+    PDLPFC3            0.000    999.000    999.000    999.000
+    PDLPFC4            0.000    999.000    999.000    999.000
+    DELTA21            0.000    999.000    999.000    999.000
+    DELTA32            0.000    999.000    999.000    999.000
+    DELTA43            0.000    999.000    999.000    999.000
+
+
+R-SQUARE
+
+    Observed                                        Two-Tailed
+    Variable        Estimate       S.E.  Est./S.E.    P-Value
+
+    DLPFC1             0.793      0.099      7.974      0.000
+    DLPFC2             0.513      0.034     15.067      0.000
+    DLPFC3             0.510      0.037     13.700      0.000
+    DLPFC4             0.643      0.076      8.418      0.000
+
+     Latent                                         Two-Tailed
+    Variable        Estimate       S.E.  Est./S.E.    P-Value
+
+    PDLPFC1            1.000    999.000    999.000    999.000
+    PDLPFC2            1.000    999.000    999.000    999.000
+    PDLPFC3            1.000    999.000    999.000    999.000
+    PDLPFC4            1.000    999.000    999.000    999.000
+    DELTA21            1.000    999.000    999.000    999.000
+    DELTA32            1.000    999.000    999.000    999.000
+    DELTA43            1.000    999.000    999.000    999.000
+
+
+     Beginning Time:  10:31:38
+        Ending Time:  10:31:38
+       Elapsed Time:  00:00:00
+
+
+
+MUTHEN & MUTHEN
+3463 Stoner Ave.
+Los Angeles, CA  90066
+
+Tel: (310) 391-9971
+Fax: (310) 391-8971
+Web: www.StatModel.com
+Support: Support@StatModel.com
+
+Copyright (c) 1998-2021 Muthen & Muthen

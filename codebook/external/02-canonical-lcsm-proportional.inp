@@ -1,0 +1,50 @@
+TITLE:
+ Chapter 2: Canonical Latent Change Score Model with Proportional Change (LCSM)
+DATA:
+ FILE = 02-executive-function.dat;
+VARIABLE:
+ NAMES = id dlpfc1-dlpfc4; 
+ USEVARIABLES = dlpfc1-dlpfc4;
+ MISSING = .;
+ANALYSIS:
+ ESTIMATOR = ML;
+MODEL:
+ ! Define Phantom Variables (p = phantom)
+ pdlpfc1 BY dlpfc1@1; 
+ pdlpfc2 BY dlpfc2@1; 
+ pdlpfc3 BY dlpfc3@1; 
+ pdlpfc4 BY dlpfc4@1; 
+ 
+ [dlpfc1-dlpfc4@0];
+ dlpfc1-dlpfc4;
+ 
+ pdlpfc1-pdlpfc4@0;
+ 
+ ! Regressions Between Adjacent Observations
+ pdlpfc2 ON pdlpfc1@1;
+ pdlpfc3 ON pdlpfc2@1;
+ pdlpfc4 ON pdlpfc3@1;
+ 
+ ! Define Change Latent Variables (delta)
+ delta21 BY pdlpfc2@1;
+ delta32 BY pdlpfc3@1;
+ delta43 BY pdlpfc4@1;
+ 
+ delta21-delta43@0;
+ 
+ ! Define Proportional Change Regressions (beta = equality constraint)
+ delta21 ON pdlpfc1 (beta);
+ delta32 ON pdlpfc2 (beta);
+ delta43 ON pdlpfc3 (beta); 
+ 
+ ! Define Intercept and Slope
+ int BY pdlpfc1@1;
+ slp BY delta21-delta43@1;
+ 
+ [int slp];
+ int slp;
+ int WITH slp;
+ 
+OUTPUT:
+ STDYX; 
+ 

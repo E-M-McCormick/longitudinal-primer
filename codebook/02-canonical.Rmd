@@ -68,20 +68,35 @@ feedback.learning %>% filter(id <= 5) %>%
 Before we move into fitting the growth models in each of the four frameworks, we can begin by exporting the data to [**SAS**](https://www.sas.com/) and [**Mplus**](https://www.statmodel.com/) compatible file types. We will use the [**MplusAutomation**](https://michaelhallquist.github.io/MplusAutomation/articles/vignette.html) package to write our Rdata into a `.dat` file. We have wrapped the command in the `capture.output()` function so that we can retain a record of the column names (**Mplus** does not accept files with headers) to prevent referencing the wrong variable when we run our model. The output of the **MplusAutomation** command `prepareMplusData()` will be saved in a text file in the same external directory.
 
 ```{r, write to mplus 02, message = FALSE, warning = FALSE, error = FALSE}
-filename <- "executive-function"
+filename <- "02-executive-function"
 capture.output(
   MplusAutomation::prepareMplusData(executive.function, 
                                     paste0("external/",filename,".dat")),
-  file=paste0("external/",filename,"_MplusAutomation.txt"))
+  file=paste0("external/",filename,"-MplusAutomation.txt"))
 ```
 
 Although we do not show the running and output of these models in-depth, all the **Mplus** files needed to recreate the MLM and SEM models are available to be downloaded below.
 
 ```{r, download mplus 02, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
 download_file(
-  path = c(paste0("external/",filename,".dat"),
-           paste0("external/",filename,"_MplusAutomation.txt")),
-  output_name = "02-canonical-mpluscode",
+  path = paste0("external/",
+                c(paste0(filename,".dat"),
+                  paste0(filename,"-MplusAutomation.txt"),
+                  "02-canonical-mlm.inp", "02-canonical-mlm.out",
+                  "02-canonical-lcm.inp", "02-canonical-lcm.out",
+                  "02-canonical-lcsm.inp", "02-canonical-lcsm.out",
+                  "02-canonical-lcsm-proportional.inp", 
+                  "02-canonical-lcsm-proportional.out",
+                  "03-accelerated-wide.dat",
+                  "03-accelerated.inp", "03-accelerated.out",
+                  "05-executive-function.dat",
+                  "05-randomTVC-lcm.inp", "05-randomTVC-lcm.out",
+                  "05-externalizing.dat",
+                  "05-catML-distaloutcome.inp", "05-catML-distaloutcome.out",
+                  "06-achieve.dat",
+                  "06-threelevel-lcm.inp", "06-threelevel-lcm.out",
+                  "06-clustercorrect-lcm.inp", "06-clustercorrect-lcm.out")),
+  output_name = "primer-mpluscode",
   button_label = "Download Mplus files",
   button_type = "default",
   has_icon = TRUE,
@@ -96,8 +111,8 @@ We can also use the package [**foreign**](https://cran.r-project.org/web/package
 
 ```{r, write to sas 02, message = FALSE, warning = FALSE, error = FALSE}
 foreign::write.foreign(executive.function.long, 
-                       datafile = paste0("external/",filename,".txt"), 
-                       codefile = paste0("external/import_",filename,".sas"), 
+                       datafile = paste0("external/",filename,".csv"), 
+                       codefile = paste0("external/",filename,"-import.sas"), 
                        package="SAS")
 ```
 
@@ -105,9 +120,16 @@ For convenience, all the **SAS** files needed to recreate the MLM analyses are a
 
 ```{r, download sas 02, message = FALSE, warning = FALSE, error = FALSE, echo = FALSE}
 download_file(
-  path = c(paste0("external/",filename,".txt"),
-           paste0("external/import_",filename,".sas")),
-  output_name = "02-canonical-sascode",
+  path = paste0("external/",
+                c(paste0(filename,".csv"),
+                  paste0(filename,"-import.sas"),
+                  "02-canonical-mlm.sas",
+                  "02-executive-function.csv",
+                  "05-multivariate-mlm.sas",
+                  "05-multivar-long.csv",
+                  "06-achieve.csv",
+                  "06-threelevel-mlm.sas")),
+  output_name = "primer-sascode",
   button_label = "Download SAS files",
   button_type = "default",
   has_icon = TRUE,

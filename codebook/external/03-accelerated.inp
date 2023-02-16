@@ -1,0 +1,23 @@
+TITLE:
+ Chapter 3: TSCORE Model for Accelerated Data
+DATA:
+ FILE = 03-accelerated-wide.dat;
+DEFINE:
+ modu1 = mod1 * 10;
+ modu2 = mod2 * 10;
+ modu3 = mod3 * 10;
+VARIABLE:
+ NAMES = id age1-age3 mod1-mod3 pub1-pub3;
+ USEVARIABLES = age1-age3 modu1-modu3;
+ MISSING = .;
+ TSCORES = age1-age3;
+ANALYSIS:
+ TYPE = RANDOM;
+ ESTIMATOR = ML;
+ ALGORITHM = INTEGRATION;
+MODEL:
+  int slp | modu1 modu2 modu3 AT age1 age2 age3;
+  [int slp];
+  int slp;
+
+ 

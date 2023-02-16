@@ -2,7 +2,7 @@
 *  foreign::write.foreign(executive.function.long, datafile = paste0("external/",  ;
 
 DATA  rdata ;
-INFILE  "external/executive-function.txt" 
+INFILE  "external/02-executive-function.csv" 
      DSD 
      LRECL= 28 ;
 INPUT

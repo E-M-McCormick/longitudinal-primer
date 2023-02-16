@@ -1,0 +1,26 @@
+TITLE:
+ Chapter 2: Canonical Multilevel Model (MLM)
+DATA:
+ FILE = 02-executive-function.dat;
+DATA WIDETOLONG:
+ WIDE = dlpfc1-dlpfc4;
+ LONG = dlpfc;
+ IDVARIABLE = id;
+ REPETITION = wave;
+VARIABLE:
+ NAMES = id dlpfc1-dlpfc4; 
+ USEVARIABLES = id wave dlpfc;
+ CLUSTER = id;
+ WITHIN = wave;
+ MISSING = .;
+ANALYSIS:
+ ESTIMATOR = ML;
+ TYPE = TWOLEVEL RANDOM;
+MODEL:
+ ! Specify Random Slope
+ %WITHIN%
+ s | dlpfc ON wave;
+
+ ! Allow Random Intercept and Slope to Covary
+ %BETWEEN%
+ dlpfc WITH s;

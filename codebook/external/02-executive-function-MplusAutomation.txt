@@ -1,5 +1,5 @@
 TITLE: Your title goes here
-DATA: FILE = "external/execfunction.dat";
+DATA: FILE = "external/02-executive-function.dat";
 VARIABLE: 
 NAMES = id dlpfc1 dlpfc2 dlpfc3 dlpfc4; 
 MISSING=.;

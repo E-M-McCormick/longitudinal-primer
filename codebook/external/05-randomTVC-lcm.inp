@@ -1,0 +1,25 @@
+TITLE:
+ Chapter 5: Random Effect TVC LCM
+DATA:
+ FILE = 05-executive-function.dat;
+VARIABLE:
+ NAMES = id sex tx dlpfc1-dlpfc4 ef1-ef4 age1-age4; 
+ USEVARIABLES = dlpfc1-dlpfc4 ef1-ef4;
+ MISSING = .;
+ANALYSIS:
+ ESTIMATOR = ML;
+ TYPE = RANDOM;
+MODEL:
+  int slp | ef1@0 ef2@1 ef3@2 ef4@3;
+  [int slp];
+  int slp;
+  
+  ! Time Varying Covariates
+  dlp | ef1 ON dlpfc1 (a);
+  dlp | ef2 ON dlpfc2 (a);
+  dlp | ef3 ON dlpfc3 (a);
+  dlp | ef4 ON dlpfc4 (a);
+  
+  int slp dlp WITH int slp dlp;
+
+ 

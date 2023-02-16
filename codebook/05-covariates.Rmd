@@ -985,7 +985,7 @@ sim.lcm.fit <- growth(sim.lcm,
                       ordered = "incarc")
 ```
 
-Unfortunately, when we try to estimate this model, we get an error message `lavaan ERROR: data contains no observations`, which should be slighly concerning... What is happening here is that in this dataset, because no one person is observed on adjacent measures (e.g., `ext6` & `ext7`), everyone has missing data. This was not an issue in the linear versions of the model because we could use Maximum Likelihood, however, currently **lavaan** does not support categorical ML, and WLSMV will listwise delete individuals with missing data. Unfortunately for us, that's $100$ percent of adolescents in our sample. We would need to turn to **Mplus** or another program for results from this model.
+Unfortunately, when we try to estimate this model, we get an error message `lavaan ERROR: data contains no observations`, which should be slightly concerning... What is happening here is that in this dataset, because no one person is observed on adjacent measures (e.g., `ext6` & `ext7`), everyone has missing data. This was not an issue in the linear versions of the model because we could use Maximum Likelihood, however, currently **lavaan** does not support categorical ML, and WLSMV will listwise delete individuals with missing data. Unfortunately for us, that's $100$ percent of adolescents in our sample. We would need to turn to **Mplus** or another program for results from this model.
 
 As we mentioned, this area of methodological research is still relatively under-developed and awaits solutions to many of the limitations we have run into here.
 

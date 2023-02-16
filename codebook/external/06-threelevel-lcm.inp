@@ -1,0 +1,26 @@
+TITLE:
+ Chapter 6: Three-Level LCM
+DATA:
+ FILE = 06-achieve.dat;
+VARIABLE:
+ NAMES = site school id male sci1-sci4 math1-math4; 
+ USEVARIABLES = school sci1-sci4;
+ CLUSTER = school;
+ MISSING = .;
+ANALYSIS:
+ ESTIMATOR = ML;
+ TYPE = TWOLEVEL;
+MODEL:
+  %WITHIN%
+  iw sw | sci1@0 sci2@1 sci3@2 sci4@3;
+  
+  %BETWEEN%
+  ib2 sb2 | sci1@0 sci2@1 sci3@2 sci4@3;
+  
+  sci1-sci4@0;
+  
+OUTPUT:
+ TECH1 TECH8;
+ STDYX;
+
+ 

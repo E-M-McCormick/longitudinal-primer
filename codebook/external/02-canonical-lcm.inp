@@ -1,0 +1,26 @@
+TITLE:
+ Chapter 2: Canonical Latent Curve Model (LCM)
+DATA:
+ FILE = 02-executive-function.dat;
+VARIABLE:
+ NAMES = id dlpfc1-dlpfc4; 
+ USEVARIABLES = dlpfc1-dlpfc4;
+ MISSING = .;
+ANALYSIS:
+ ESTIMATOR = ML;
+MODEL:
+ ! Define the Latent Variables (the | is a shortcut the usual BY syntax)
+ int slp | dlpfc1@0 dlpfc2@1 dlpfc3@2 dlpfc4@3;
+ 
+ ! Define Factor Means
+ [int slp];
+ 
+ ! Define Factor (Co)Variances
+ int slp;
+ int WITH slp;
+ 
+ ! Define Indicator Residual Variances
+ dlpfc1-dlpfc4;
+ 
+OUTPUT:
+ STDYX; 
